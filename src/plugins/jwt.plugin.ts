@@ -1,0 +1,26 @@
+import fastifyJwt from '@fastify/jwt';
+import { FastifyInstance } from 'fastify';
+import env from '../config/env.js';
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: {
+      id: number;
+      email: string;
+      name: string;
+    };
+  }
+}
+
+export default async function jwtPlugin(fastify: FastifyInstance): Promise<void> {
+  fastify.register(fastifyJwt, {
+    secret: env.JWT_SECRET,
+    sign: {
+      expiresIn: '7d',
+      algorithm: 'HS256',
+    },
+    verify: {
+      algorithms: ['HS256'],
+    },
+  });
+}
