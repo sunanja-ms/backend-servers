@@ -81,11 +81,9 @@ CREATE INDEX role_idx ON users(role);
 ### 2. Products Table
 
 #### Table Name
-
 `products`
 
 #### Description
-
 Menyimpan data produk yang dimiliki oleh user.
 
 #### Schema Definition
@@ -142,7 +140,6 @@ CREATE INDEX name_idx ON products(name);
 ### 1. user_role
 
 #### Description
-
 Menentukan level akses user dalam sistem.
 
 #### Values
@@ -233,10 +230,12 @@ export const users = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    emailIdx: uniqueIndex("email_idx").on(table.email),
-    roleIdx: index("role_idx").on(table.role),
-  }),
+  (table) => {
+    return {
+      emailIdx: uniqueIndex("email_idx").on(table.email),
+      roleIdx: index("role_idx").on(table.role),
+    };
+  }
 );
 
 // === Products Table ===
@@ -247,82 +246,76 @@ export const products = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-    stock: integer("stock").default(0).notNull(),
-    userId: integer("user_id").references(() => users.id, {
-      onDelete: "cascade",
-    }),
+    stock: integer("stock").notNull().default(0),
+    userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
     isActive: boolean("is_active").default(true),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    userIdIdx: index("user_id_idx").on(table.userId),
-    nameIdx: index("name_idx").on(table.name),
-  }),
+  (table) => {
+    return {
+      userIdIdx: index("user_id_idx").on(table.userId),
+      nameIdx: index("name_idx").on(table.name),
+    };
+  }
 );
 
 // === Types ===
-export type User = InferSelectModel<typeof users>;
-export type NewUser = InferInsertModel<typeof users>;
-export type Product = InferSelectModel<typeof products>;
-export type NewProduct = InferInsertModel<typeof products>;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Product = typeof products.$inferSelect;
+export type NewProduct = typeof products.$inferInsert;
 ```
 
----
-
-## 🔍 Query Examples
-
-### Basic Queries
+### Select Examples
 
 ```typescript
 // Get all users
 const allUsers = await db.select().from(users);
 
-// Get user by email
-const user = await db
+// Get user by ID
+const [user] = await db
   .select()
   .from(users)
-  .where(eq(users.email, "user@example.com"))
+  .where(eq(users.id, 1))
   .limit(1);
 
-// Get all products by user
-const userProducts = await db
+// Get products with pagination
+const [products, { count }] = await db
   .select()
   .from(products)
-  .where(eq(products.userId, userId));
+  .limit(10)
+  .offset(0)
+  .groupBy(products.id)
+  .then((rows) => [rows, { count: rows.length }]);
 
-// Get product with user details (JOIN)
-const productsWithUser = await db
-  .select({
-    id: products.id,
-    name: products.name,
-    price: products.price,
-    userName: users.name,
-    userEmail: users.email,
-  })
+// Get user's products
+const [userProducts] = await db
+  .select()
   .from(products)
-  .leftJoin(users, eq(products.userId, users.id));
+  .where(eq(products.userId, 1));
 ```
 
 ### Insert Examples
 
 ```typescript
-// Insert new user
+// Create user
 const [newUser] = await db
   .insert(users)
   .values({
-    email: "user@example.com",
-    password: hashedPassword,
+    email: "john@example.com",
+    password: await bcrypt.hash("password123", 12),
     name: "John Doe",
   })
   .returning();
 
-// Insert new product
+// Create product
 const [newProduct] = await db
   .insert(products)
   .values({
-    name: "Product 1",
-    price: "100000",
+    name: "Laptop Pro",
+    description: "High-end laptop with 16GB RAM",
+    price: 15000000,
     stock: 10,
     userId: 1,
   })
@@ -556,14 +549,11 @@ WHERE schemaname = 'public';
 ## 📚 Reference
 
 ### Drizzle ORM Documentation
-
 - https://orm.drizzle.team/
 
 ### PostgreSQL Documentation
-
 - https://www.postgresql.org/docs/16/
 
 ### JWT Documentation
-
 - https://jwt.io/introduction
 - https://github.com/fastify/fastify-jwt

@@ -89,66 +89,6 @@ logger.debug('Debug info'); // ✅
 
 ---
 
-### Fastify Specific Rules
-
-#### Plugin Rules
-
-```typescript
-// ✅ DO: Register plugins properly
-export default async function plugin(fastify: FastifyInstance) {
-  await fastify.register(cors, { origin: "*" });
-  await fastify.register(helmet);
-}
-
-// ❌ DON'T: Use plugins without proper registration
-fastify.use(cors()); // ❌
-```
-
-#### Route Rules
-
-```typescript
-// ✅ DO: Define routes with schemas
-fastify.post("/users", {
-  schema: {
-    body: userSchema,
-    response: {
-      201: userResponseSchema,
-    },
-  },
-  handler: createUser,
-});
-
-// ❌ DON'T: Skip schema validation
-fastify.post("/users", handler); // ❌
-```
-
-#### Error Handling Rules
-
-```typescript
-// ✅ DO: Use consistent error handling
-try {
-  // code
-} catch (error) {
-  if (error instanceof ZodError) {
-    return reply.status(400).send({
-      success: false,
-      error: "Validation Error",
-      details: error.errors,
-    });
-  }
-  throw error;
-}
-
-// ❌ DON'T: Throw raw errors
-try {
-  // code
-} catch (error) {
-  throw error; // ❌
-}
-```
-
----
-
 ## 🔀 Git Workflow
 
 ### Branch Strategy
@@ -258,221 +198,122 @@ describe("UserService", () => {
 ### Integration Tests
 
 ```typescript
-// ✅ DO: Test API endpoints
-describe("POST /api/v1/auth/register", () => {
-  it("should return 201 on successful registration", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/auth/register",
-      payload: registerData,
-    });
+// ✅ DO: Test API
+import { describe, it, expect } from "vitest";
+import { fastify } from "fastify";
+import { build } from "../src/server";
+
+describe("Auth Controller", () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await build();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("should register a user", async () => {
+    const response = await app
+      .post("/api/v1/auth/register")
+      .send({
+        email: "test@example.com",
+        password: "password123",
+        name: "Test User",
+      });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json()).toHaveProperty("success", true);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveProperty("id");
+  });
+
+  it("should login a user", async () => {
+    // First register
+    await app
+      .post("/api/v1/auth/register")
+      .send({
+        email: "test2@example.com",
+        password: "password123",
+        name: "Test User 2",
+      });
+
+    // Then login
+    const response = await app
+      .post("/api/v1/auth/login")
+      .send({
+        email: "test2@example.com",
+        password: "password123",
+      });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveProperty("token");
   });
 });
-
-// ❌ DON'T: Skip error cases
-// ❌ DON'T: Hard-code test data
 ```
 
-### Test Coverage Rules
-
-| Component   | Minimum Coverage |
-| ----------- | ---------------- |
-| Models      | 90%              |
-| Services    | 90%              |
-| Controllers | 80%              |
-| Utils       | 80%              |
-| Middleware  | 70%              |
-| Total       | 80%              |
-
----
-
-## 🚀 Performance Rules
-
-### Database Optimization
+### E2E Tests
 
 ```typescript
-// ✅ DO: Use indexes
-const users = await db.select().from(users).where(eq(users.email, email)); // email has index
+// ✅ DO: Test full user flows
+import { describe, it, expect } from "vitest";
+import { build } from "../src/server";
 
-// ✅ DO: Select only needed fields
-const users = await db
-  .select({
-    id: users.id,
-    name: users.name,
-  })
-  .from(users);
+describe("User Flow E2E", () => {
+  let app: FastifyInstance;
 
-// ❌ DON'T: Select all without indexes
-const users = await db.select().from(users); // ❌ Without WHERE
+  beforeAll(async () => {
+    app = await build();
+  });
 
-// ❌ DON'T: Select all fields if not needed
-const users = await db.select().from(users); // ❌ If only need id,name
-```
+  afterAll(async () => {
+    await app.close();
+  });
 
-### API Optimization
+  it("should complete user registration and product creation flow", async () => {
+    // 1. Register user
+    const registerResponse = await app
+      .post("/api/v1/auth/register")
+      .send({
+        email: "e2e@example.com",
+        password: "password123",
+        name: "E2E Test User",
+      });
 
-```typescript
-// ✅ DO: Use pagination
-const users = await db
-  .select()
-  .from(users)
-  .limit(10)
-  .offset(page * 10);
+    expect(registerResponse.statusCode).toBe(201);
+    expect(registerResponse.body.success).toBe(true);
+    const userId = registerResponse.body.data.id;
 
-// ✅ DO: Use compression
-await fastify.register(compress, {
-  global: true,
-  threshold: 1024,
+    // 2. Login
+    const loginResponse = await app
+      .post("/api/v1/auth/login")
+      .send({
+        email: "e2e@example.com",
+        password: "password123",
+      });
+
+    expect(loginResponse.statusCode).toBe(200);
+    expect(loginResponse.body.success).toBe(true);
+    const token = loginResponse.body.data.token;
+
+    // 3. Create product
+    const productResponse = await app
+      .post("/api/v1/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "E2E Test Product",
+        description: "Product created during E2E test",
+        price: 100000,
+        stock: 5,
+      });
+
+    expect(productResponse.statusCode).toBe(201);
+    expect(productResponse.body.success).toBe(true);
+    expect(productResponse.body.data).toHaveProperty("id");
+    expect(productResponse.body.data.userId).toBe(userId);
+  });
 });
-
-// ✅ DO: Use cache headers
-reply.header("Cache-Control", "public, max-age=300");
-
-// ❌ DON'T: Return large datasets without pagination
-const allUsers = await db.select().from(users); // ❌
-
-// ❌ DON'T: Disable compression
-```
-
----
-
-## 🔒 Security Rules
-
-### Authentication Rules
-
-```typescript
-// ✅ DO: Always protect routes
-fastify.get("/users", {
-  preHandler: [authMiddleware], // ✅
-  handler: getUsers,
-});
-
-fastify.get("/users", {
-  // ❌ No auth middleware
-  handler: getUsers, // ❌
-});
-
-// ✅ DO: Role-based access
-fastify.delete("/users/:id", {
-  preHandler: [authMiddleware, requireRole(["admin"])],
-  handler: deleteUser,
-});
-
-// ❌ DON'T: Expose user data
-const user = await userService.getUser(id);
-return user; // ❌ Might include password
-
-// ✅ DO: Remove sensitive data
-const { password, ...userData } = user;
-return userData; // ✅
-```
-
-### Input Validation Rules
-
-```typescript
-// ✅ DO: Validate all inputs
-const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
-const data = schema.parse(request.body);
-
-// ✅ DO: Validate IDs
-const id = z.coerce.number().int().positive().parse(params.id);
-
-// ❌ DON'T: Trust user input
-const { email, password } = request.body; // ❌
-
-// ❌ DON'T: Use unsanitized input in queries
-const id = params.id; // ❌
-```
-
-### Environment Rules
-
-```typescript
-// ✅ DO: Use environment variables
-const JWT_SECRET = process.env.JWT_SECRET; // ✅
-
-// ❌ DON'T: Hard-code secrets
-const JWT_SECRET = "hardcoded-secret"; // ❌
-
-// ✅ DO: Validate environment
-const env = z
-  .object({
-    JWT_SECRET: z.string().min(32),
-  })
-  .parse(process.env);
-
-// ❌ DON'T: Skip validation
-```
-
----
-
-## 📚 Documentation Rules
-
-### Code Documentation
-
-```typescript
-/**
- * User Service
- *
- * Handles all user-related business logic
- *
- * @example
- * const userService = new UserService();
- * const user = await userService.createUser(data);
- */
-export class UserService {
-  /**
-   * Create a new user
-   *
-   * @param data - User registration data
-   * @returns Created user (without password)
-   * @throws {Error} If user already exists
-   */
-  async createUser(data: RegisterInput): Promise<Omit<User, "password">> {
-    // Implementation
-  }
-}
-```
-
-### API Documentation
-
-```typescript
-// ✅ DO: Document endpoints
-fastify.post("/users", {
-  schema: {
-    description: "Create a new user",
-    tags: ["Users"],
-    body: {
-      type: "object",
-      required: ["email", "password", "name"],
-      properties: {
-        email: { type: "string", format: "email" },
-        password: { type: "string", minLength: 6 },
-        name: { type: "string", minLength: 2 },
-      },
-    },
-    response: {
-      201: {
-        description: "User created successfully",
-        type: "object",
-        properties: {
-          success: { type: "boolean" },
-          data: { type: "object" },
-        },
-      },
-    },
-  },
-  handler: createUser,
-});
-
-// ❌ DON'T: Skip documentation
-fastify.post("/users", handler); // ❌
 ```
 
 ---

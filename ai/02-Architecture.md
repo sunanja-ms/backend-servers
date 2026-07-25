@@ -23,7 +23,7 @@
 │ │ - CORS │ │ - Auth │ │ - /api/v1/auth │ │
 │ │ - Helmet │ │ - Error │ │ - /api/v1/users │ │
 │ │ - JWT │ │ │ │ - /api/v1/prod │ │
-│ │ - RateLimit │ └──────────────┘ └──────────────────┘ │
+│ │ - RateLimit │ └──────────────┘ └──────────────┘ │
 │ │ - Swagger │ │ │
 │ └──────────────┘ │ │
 └────────────────────────────────┬──────────────────────────┘
@@ -34,7 +34,7 @@
 │ ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐ │
 │ │ Auth │ │ User │ │ Product │ │
 │ │ Service │ │ Service │ │ Service │ │
-│ └──────────────┘ └──────────────┘ └──────────────────┘ │
+│ └──────────────┘ └──────────────┘ └──────────────┘ │
 └────────────────────────────────┬────────────────────────────┘
 │
 ▼
@@ -43,7 +43,7 @@
 │ ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐ │
 │ │ User │ │ Product │ │ Database │ │
 │ │ Model │ │ Model │ │ Connection │ │
-│ └──────────────┘ └──────────────┘ └──────────────────┘ │
+│ └──────────────┘ └──────────────┘ └──────────────┘ │
 └────────────────────────────────┬────────────────────────────┘
 │
 ▼
@@ -175,7 +175,7 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠��� Technology Stack
 
 ### Why These Technologies?
 
@@ -184,13 +184,13 @@ sequenceDiagram
 | **Fastify**     | 5.7.2        | High performance, low overhead, built-in validation |
 | **TypeScript**  | 5.9.2        | Type safety, better DX, maintainability             |
 | **Drizzle ORM** | 0.45.1       | Type-safe queries, lightweight, SQL-like syntax     |
-| **PostgreSQL**  | 16           | Reliable, ACID compliant, JSON support              |
-| **Pino**        | 9.6.0        | Extremely fast, JSON logging, structured logs       |
-| **Zod**         | 3.25.76      | Type-safe validation, schema definition             |
-| **bcryptjs**    | 3.0.0        | Industry standard for password hashing              |
-| **JWT**         | @fastify/jwt | Secure authentication, stateless                    |
+| **PostgreSQL**  | 16           | Reliable, ACID compliant, rich feature set          |
+| **Zod**         | 3.25.76      | Schema validation with TypeScript inference         |
+| **Pino**        | 9.6.0        | Fast, lightweight logger                            |
+| **bcryptjs**    | 3.0.0        | Secure password hashing                             |
+| **dotenv**      | 16.4.7       | Environment variable management                     |
 
-### Package Architecture
+### Mermaid Diagram
 
 ```mermaid
 graph TD

@@ -308,109 +308,30 @@ class UserModel {
 }
 ```
 
----
-
-## 🔧 Technical Design Decisions
-
-### 1. Why Fastify?
-
-| Aspect            | Fastify             | Alternative      |
-| ----------------- | ------------------- | ---------------- |
-| Performance       | ✅ Very Fast        | Express (slower) |
-| Schema Validation | ✅ Built-in         | Manual/AJV       |
-| Logging           | ✅ Pino integration | Console/Winston  |
-| Plugins           | ✅ Ecosystem        | Limited          |
-| TypeScript        | ✅ Excellent        | Good             |
-
-### 2. Why Drizzle ORM?
-
-| Aspect         | Drizzle           | Alternative       |
-| -------------- | ----------------- | ----------------- |
-| Type Safety    | ✅ Full type-safe | Prisma (partial)  |
-| Performance    | ✅ Very Fast      | Prisma (slower)   |
-| SQL-like       | ✅ Native SQL     | Prisma (abstract) |
-| Bundle Size    | ✅ Small          | Prisma (large)    |
-| Learning Curve | ✅ Low            | Prisma (medium)   |
-
-### 3. Why Zod for Validation?
-
-| Aspect         | Zod          | Alternative   |
-| -------------- | ------------ | ------------- |
-| Type Safety    | ✅ Full      | Yup (partial) |
-| Performance    | ✅ Fast      | Joi (slower)  |
-| Bundle Size    | ✅ Small     | Joi (large)   |
-| Error Messages | ✅ Detailed  | Yup (basic)   |
-| TypeScript     | ✅ Excellent | Good          |
-
----
-
-## 📝 Code Style Guide
-
-### Naming Conventions
+### 4. Utility Component
 
 ```typescript
-// Classes: PascalCase
-class UserService {}
-
-// Interfaces: PascalCase with I prefix
-interface IUser {}
-
-// Functions: camelCase
-function getUserById(id: number) {}
-
-// Variables: camelCase
-const userData = {};
-
-// Constants: UPPER_SNAKE_CASE
-const MAX_RETRY_COUNT = 3;
-
-// Files: kebab-case
-user - service.ts;
-user.model.ts;
-```
-
-### TypeScript Guidelines
-
-```typescript
-// ✅ Good
-interface User {
-  id: number;
-  email: string;
-  name: string;
-}
-
-async function getUser(id: number): Promise<User | null> {
-  return await userModel.findById(id);
-}
-
-// ❌ Bad
-function getUser(id: any) {
-  return userModel.findById(id);
-}
-```
-
-### Error Handling Pattern
-
-```typescript
-// ✅ Good
-try {
-  const user = await userService.findById(id);
-  if (!user) {
-    throw new Error("User not found");
+// Password Utility
+export class PasswordUtil {
+  static async hash(password: string): Promise<string> {
+    const salt = await bcrypt.genSalt(12);
+    return await bcrypt.hash(password, salt);
   }
-  return user;
-} catch (error) {
-  logger.error({ error }, "Error getting user");
-  throw error;
+
+  static async compare(password: string, hashed: string): Promise<boolean> {
+    return await bcrypt.compare(password, hashed);
+  }
 }
 
-// ❌ Bad
-try {
-  const user = await userService.findById(id);
-  return user;
-} catch (error) {
-  console.log(error);
-  return null;
+// Validation Utility
+export class ValidationUtil {
+  static validateUserInput(data: unknown): UserInput {
+    const result = userSchema.safeParse(data);
+    if (!result.success) {
+      throw new ZodError(result.error.issues);
+    }
+    return result.data;
+  }
 }
 ```
 
@@ -449,6 +370,7 @@ try {
    ```
 
 4. **Response Compression**
+
    ```typescript
    await fastify.register(compress, {
      global: true,
