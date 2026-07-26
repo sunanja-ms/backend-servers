@@ -1,17 +1,22 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { UserService } from '../services/user.service.js';
 import { updateUserSchema, updatePasswordSchema } from '../schemas/user.schema.js';
-import { idSchema } from '../utils/validator.js';
+import { toggleStatusSchema } from '../schemas/common.schema.js';
+import { idSchema, parsePagination } from '../utils/validator.js';
+import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { AppError } from '../types/errors.js';
 
 export class UserController {
   constructor(private userService: UserService) {}
 
   getAll = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const users = await this.userService.findAll();
+    const pagination = parsePagination(request.query as Record<string, unknown>);
+    const result = await this.userService.findAll(pagination);
 
     reply.send({
       success: true,
-      data: users,
+      data: result.data,
+      message: `Page ${result.page} of ${result.totalPages} (${result.total} total)`,
     });
   };
 
@@ -23,11 +28,7 @@ export class UserController {
     const user = await this.userService.findById(id);
 
     if (!user) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      throw AppError.notFound('User not found');
     }
 
     reply.send({
@@ -43,14 +44,17 @@ export class UserController {
     const { id } = idSchema.parse({ id: request.params.id });
     const data = updateUserSchema.parse(request.body);
 
+    const authReq = request as AuthRequest;
+    const isOwner = authReq.user.id === id;
+    const isAdmin = authReq.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      throw AppError.forbidden('You can only update your own profile');
+    }
+
     const user = await this.userService.updateUser(id, data);
 
     if (!user) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      throw AppError.notFound('User not found');
     }
 
     reply.send({
@@ -69,11 +73,7 @@ export class UserController {
     const deleted = await this.userService.deleteUser(id);
 
     if (!deleted) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      throw AppError.notFound('User not found');
     }
 
     reply.status(204).send();
@@ -86,14 +86,17 @@ export class UserController {
     const { id } = idSchema.parse({ id: request.params.id });
     const { currentPassword, newPassword } = updatePasswordSchema.parse(request.body);
 
+    const authReq = request as AuthRequest;
+    const isOwner = authReq.user.id === id;
+    const isAdmin = authReq.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      throw AppError.forbidden('You can only change your own password');
+    }
+
     const updated = await this.userService.updatePassword(id, currentPassword, newPassword);
 
     if (!updated) {
-      return reply.status(400).send({
-        success: false,
-        error: 'Bad Request',
-        message: 'Invalid current password or user not found',
-      });
+      throw AppError.badRequest('Invalid current password or user not found');
     }
 
     reply.send({
@@ -107,24 +110,12 @@ export class UserController {
     reply: FastifyReply
   ): Promise<void> => {
     const { id } = idSchema.parse({ id: request.params.id });
-    const { isActive } = request.body as { isActive: boolean };
-
-    if (typeof isActive !== 'boolean') {
-      return reply.status(400).send({
-        success: false,
-        error: 'Bad Request',
-        message: 'isActive must be a boolean',
-      });
-    }
+    const { isActive } = toggleStatusSchema.parse(request.body ?? {});
 
     const user = await this.userService.toggleUserStatus(id, isActive);
 
     if (!user) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      throw AppError.notFound('User not found');
     }
 
     reply.send({

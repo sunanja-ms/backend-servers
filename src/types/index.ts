@@ -1,18 +1,39 @@
 import { FastifyRequest } from 'fastify';
 
-export interface ApiResponse<T = any> {
+export type UserRole = 'admin' | 'user' | 'moderator';
+
+export interface JWTPayload {
+  id: number;
+  email: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface AuthRequest extends FastifyRequest {
+  user: JWTPayload;
+}
+
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: string;
   message?: string;
+  error?: string;
   statusCode?: number;
 }
 
+export interface ErrorResponse {
+  success: false;
+  error: string;
+  message: string;
+  statusCode: number;
+  details?: unknown;
+}
+
 export interface PaginationParams {
-  page?: number;
-  limit?: number;
+  page: number;
+  limit: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder: 'asc' | 'desc';
 }
 
 export interface PaginatedResponse<T> {
@@ -23,11 +44,6 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-export interface AuthRequest extends FastifyRequest {
-  user: {
-    id: number;
-    email: string;
-    name: string;
-    role: string;
-  };
+export interface ToggleStatusRequest {
+  isActive: boolean;
 }

@@ -5,7 +5,7 @@ import env from '../config/env.js';
 export default async function compressPlugin(fastify: FastifyInstance): Promise<void> {
   const isProduction = env.NODE_ENV === 'production';
   
-  fastify.register(fastifyCompress, {
+  await fastify.register(fastifyCompress, {
     global: isProduction,
     threshold: 1024,
     encodings: ['gzip', 'deflate'],

@@ -13,6 +13,7 @@ export async function registerPlugins(fastify: FastifyInstance): Promise<void> {
     await fastify.register(autoload, {
       dir: join(__dirname, '..', 'plugins'),
       dirNameRoutePrefix: false,
+      encapsulate: false,
       ignorePattern: /^.*\.(test|spec)\.ts$/,
       maxDepth: 1,
     });

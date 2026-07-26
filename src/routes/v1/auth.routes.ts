@@ -3,7 +3,7 @@ import { AuthController } from '../../controllers/auth.controller.js';
 import { AuthService } from '../../services/auth.service.js';
 import { authMiddleware } from '../../middlewares/auth.middleware.js';
 
-export default async function authRoutes(fastify: FastifyInstance): Promise<void> {
+async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const authService = new AuthService(fastify);
   const authController = new AuthController(authService);
 
@@ -146,3 +146,6 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     },
   }, authController.validateToken);
 }
+
+authRoutes.autoPrefix = '/auth';
+export default authRoutes;

@@ -1,14 +1,49 @@
 import { db } from '../config/db.connection.js';
 import { products, Product, NewProduct } from '../config/db.schemas.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql, asc, desc, Column } from 'drizzle-orm';
 import logger from '../utils/logger.js';
+import { PaginatedResponse, PaginationParams } from '../types/index.js';
+
+const productSortableColumns: Record<string, Column> = {
+  name: products.name,
+  price: products.price,
+  stock: products.stock,
+  createdAt: products.createdAt,
+  updatedAt: products.updatedAt,
+};
 
 export class ProductModel {
-  async findAll(userId?: number): Promise<Product[]> {
-    if (userId) {
-      return await db.select().from(products).where(eq(products.userId, userId));
-    }
-    return await db.select().from(products);
+  async findAll(
+    userId?: number,
+    pagination?: PaginationParams
+  ): Promise<PaginatedResponse<Product>> {
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 10;
+    const offset = (page - 1) * limit;
+
+    const sortColumn = pagination?.sortBy ? productSortableColumns[pagination.sortBy] : undefined;
+    const orderBy = sortColumn
+      ? pagination?.sortOrder === 'asc'
+        ? asc(sortColumn)
+        : desc(sortColumn)
+      : desc(products.createdAt);
+
+    const whereClause = userId ? eq(products.userId, userId) : undefined;
+
+    const [allProducts, countResult] = await Promise.all([
+      db.select().from(products).where(whereClause).orderBy(orderBy).limit(limit).offset(offset),
+      db.select({ total: sql<number>`count(*)::int` }).from(products).where(whereClause),
+    ]);
+
+    const total = countResult[0]?.total ?? 0;
+
+    return {
+      data: allProducts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: number): Promise<Product | null> {
@@ -55,17 +90,12 @@ export class ProductModel {
   }
 
   async updateStock(id: number, quantity: number): Promise<Product | null> {
-    const product = await this.findById(id);
-    if (!product) return null;
-
-    const newStock = product.stock + quantity;
-    if (newStock < 0) {
-      throw new Error('Insufficient stock');
-    }
-
     const [updatedProduct] = await db
       .update(products)
-      .set({ stock: newStock, updatedAt: new Date() })
+      .set({
+        stock: sql`${products.stock} + ${quantity}`,
+        updatedAt: new Date(),
+      })
       .where(eq(products.id, id))
       .returning();
 

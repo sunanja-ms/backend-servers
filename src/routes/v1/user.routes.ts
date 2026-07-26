@@ -3,29 +3,39 @@ import { UserController } from '../../controllers/user.controller.js';
 import { UserService } from '../../services/user.service.js';
 import { authMiddleware, requireRole } from '../../middlewares/auth.middleware.js';
 
-export default async function userRoutes(fastify: FastifyInstance): Promise<void> {
+async function userRoutes(fastify: FastifyInstance): Promise<void> {
   const userService = new UserService();
   const userController = new UserController(userService);
 
-  // All routes require authentication
   fastify.addHook('preHandler', authMiddleware);
 
   fastify.get('/', {
+    preHandler: [requireRole(['admin', 'moderator'])],
     schema: {
-      description: 'Get all users',
+      description: 'Get all users (paginated)',
       tags: ['Users'],
       security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'number', minimum: 1, default: 1 },
+          limit: { type: 'number', minimum: 1, maximum: 100, default: 10 },
+          sortBy: { type: 'string', enum: ['name', 'email', 'role', 'createdAt', 'updatedAt'] },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+        },
+      },
       response: {
         200: {
           type: 'object',
           properties: {
             success: { type: 'boolean' },
+            message: { type: 'string' },
             data: {
               type: 'array',
               items: {
                 type: 'object',
                 properties: {
-                  id: { type: 'string' },
+                  id: { type: 'number' },
                   email: { type: 'string' },
                   name: { type: 'string' },
                   role: { type: 'string' },
@@ -49,7 +59,7 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -61,7 +71,7 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 email: { type: 'string' },
                 name: { type: 'string' },
                 role: { type: 'string' },
@@ -78,13 +88,13 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
 
   fastify.put('/:id', {
     schema: {
-      description: 'Update user',
+      description: 'Update user (owner or admin only)',
       tags: ['Users'],
       security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -104,7 +114,7 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 email: { type: 'string' },
                 name: { type: 'string' },
                 role: { type: 'string' },
@@ -126,7 +136,7 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -135,13 +145,13 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
 
   fastify.post('/:id/change-password', {
     schema: {
-      description: 'Change user password',
+      description: 'Change user password (owner or admin only)',
       tags: ['Users'],
       security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -165,7 +175,7 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -179,3 +189,6 @@ export default async function userRoutes(fastify: FastifyInstance): Promise<void
     },
   }, userController.toggleStatus);
 }
+
+userRoutes.autoPrefix = '/users';
+export default userRoutes;

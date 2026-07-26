@@ -5,19 +5,26 @@ import {
   updateProductSchema,
   updateStockSchema,
 } from '../schemas/product.schema.js';
-import { idSchema } from '../utils/validator.js';
+import { toggleStatusSchema } from '../schemas/common.schema.js';
+import { idSchema, parsePagination } from '../utils/validator.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { AppError } from '../types/errors.js';
 
 export class ProductController {
   constructor(private productService: ProductService) {}
 
   getAll = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const userId = (request as AuthRequest).user?.id;
-    const products = await this.productService.findAll(userId);
+    const authReq = request as AuthRequest;
+    const isAdmin = authReq.user?.role === 'admin' || authReq.user?.role === 'moderator';
+    const userId = isAdmin ? undefined : authReq.user?.id;
+    const pagination = parsePagination(request.query as Record<string, unknown>);
+
+    const result = await this.productService.findAll(userId, pagination);
 
     reply.send({
       success: true,
-      data: products,
+      data: result.data,
+      message: `Page ${result.page} of ${result.totalPages} (${result.total} total)`,
     });
   };
 
@@ -29,11 +36,7 @@ export class ProductController {
     const product = await this.productService.findById(id);
 
     if (!product) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'Product not found',
-      });
+      throw AppError.notFound('Product not found');
     }
 
     reply.send({
@@ -65,20 +68,25 @@ export class ProductController {
   ): Promise<void> => {
     const { id } = idSchema.parse({ id: request.params.id });
     const data = updateProductSchema.parse(request.body);
+
+    const existingProduct = await this.productService.findById(id);
+    if (!existingProduct) {
+      throw AppError.notFound('Product not found');
+    }
+
+    const authReq = request as AuthRequest;
+    const isOwner = existingProduct.userId === authReq.user.id;
+    const isAdmin = authReq.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      throw AppError.forbidden('You can only update your own products');
+    }
+
     const updateData = {
       ...data,
       price: data.price !== undefined ? data.price.toString() : undefined,
     };
 
     const product = await this.productService.update(id, updateData);
-
-    if (!product) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'Product not found',
-      });
-    }
 
     reply.send({
       success: true,
@@ -96,11 +104,7 @@ export class ProductController {
     const deleted = await this.productService.delete(id);
 
     if (!deleted) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'Product not found',
-      });
+      throw AppError.notFound('Product not found');
     }
 
     reply.status(204).send();
@@ -113,15 +117,19 @@ export class ProductController {
     const { id } = idSchema.parse({ id: request.params.id });
     const { quantity } = updateStockSchema.parse(request.body);
 
-    const product = await this.productService.updateStock(id, quantity);
-
-    if (!product) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'Product not found',
-      });
+    const existingProduct = await this.productService.findById(id);
+    if (!existingProduct) {
+      throw AppError.notFound('Product not found');
     }
+
+    const authReq = request as AuthRequest;
+    const isOwner = existingProduct.userId === authReq.user.id;
+    const isAdmin = authReq.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      throw AppError.forbidden('You can only update stock for your own products');
+    }
+
+    const product = await this.productService.updateStock(id, quantity);
 
     reply.send({
       success: true,
@@ -135,24 +143,12 @@ export class ProductController {
     reply: FastifyReply
   ): Promise<void> => {
     const { id } = idSchema.parse({ id: request.params.id });
-    const { isActive } = request.body as { isActive: boolean };
-
-    if (typeof isActive !== 'boolean') {
-      return reply.status(400).send({
-        success: false,
-        error: 'Bad Request',
-        message: 'isActive must be a boolean',
-      });
-    }
+    const { isActive } = toggleStatusSchema.parse(request.body ?? {});
 
     const product = await this.productService.toggleProductStatus(id, isActive);
 
     if (!product) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Not Found',
-        message: 'Product not found',
-      });
+      throw AppError.notFound('Product not found');
     }
 
     reply.send({

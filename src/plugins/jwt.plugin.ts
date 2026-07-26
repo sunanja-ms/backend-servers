@@ -8,12 +8,13 @@ declare module '@fastify/jwt' {
       id: number;
       email: string;
       name: string;
+      role: string;
     };
   }
 }
 
 export default async function jwtPlugin(fastify: FastifyInstance): Promise<void> {
-  fastify.register(fastifyJwt, {
+  await fastify.register(fastifyJwt, {
     secret: env.JWT_SECRET,
     sign: {
       expiresIn: '7d',

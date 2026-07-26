@@ -3,32 +3,41 @@ import { ProductController } from '../../controllers/product.controller.js';
 import { ProductService } from '../../services/product.service.js';
 import { authMiddleware, requireRole } from '../../middlewares/auth.middleware.js';
 
-export default async function productRoutes(fastify: FastifyInstance): Promise<void> {
+async function productRoutes(fastify: FastifyInstance): Promise<void> {
   const productService = new ProductService();
   const productController = new ProductController(productService);
 
-  // All routes require authentication
   fastify.addHook('preHandler', authMiddleware);
 
   fastify.get('/', {
     schema: {
-      description: 'Get all products',
+      description: 'Get all products (paginated)',
       tags: ['Products'],
       security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'number', minimum: 1, default: 1 },
+          limit: { type: 'number', minimum: 1, maximum: 100, default: 10 },
+          sortBy: { type: 'string', enum: ['name', 'price', 'stock', 'createdAt', 'updatedAt'] },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+        },
+      },
       response: {
         200: {
           type: 'object',
           properties: {
             success: { type: 'boolean' },
+            message: { type: 'string' },
             data: {
               type: 'array',
               items: {
                 type: 'object',
                 properties: {
-                  id: { type: 'string' },
+                  id: { type: 'number' },
                   name: { type: 'string' },
                   description: { type: 'string' },
-                  price: { type: 'number' },
+                  price: { type: 'string' },
                   stock: { type: 'number' },
                   userId: { type: 'number' },
                   isActive: { type: 'boolean' },
@@ -51,7 +60,7 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -63,10 +72,10 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 name: { type: 'string' },
                 description: { type: 'string' },
-                price: { type: 'number' },
+                price: { type: 'string' },
                 stock: { type: 'number' },
                 userId: { type: 'number' },
                 isActive: { type: 'boolean' },
@@ -104,10 +113,10 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 name: { type: 'string' },
                 description: { type: 'string' },
-                price: { type: 'number' },
+                price: { type: 'string' },
                 stock: { type: 'number' },
                 userId: { type: 'number' },
                 isActive: { type: 'boolean' },
@@ -122,13 +131,13 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
 
   fastify.put('/:id', {
     schema: {
-      description: 'Update product',
+      description: 'Update product (owner or admin only)',
       tags: ['Products'],
       security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -151,10 +160,10 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 name: { type: 'string' },
                 description: { type: 'string' },
-                price: { type: 'number' },
+                price: { type: 'string' },
                 stock: { type: 'number' },
                 userId: { type: 'number' },
                 isActive: { type: 'boolean' },
@@ -176,7 +185,7 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -185,13 +194,13 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
 
   fastify.patch('/:id/stock', {
     schema: {
-      description: 'Update product stock',
+      description: 'Update product stock (owner or admin only)',
       tags: ['Products'],
       security: [{ bearerAuth: [] }],
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -199,7 +208,7 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
         type: 'object',
         required: ['quantity'],
         properties: {
-          quantity: { type: 'number', minimum: 0 },
+          quantity: { type: 'number', minimum: 1 },
         },
       },
       response: {
@@ -211,7 +220,7 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
             data: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
+                id: { type: 'number' },
                 name: { type: 'string' },
                 stock: { type: 'number' },
                 updatedAt: { type: 'string' },
@@ -232,7 +241,7 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
       params: {
         type: 'object',
         properties: {
-          id: { type: 'string' },
+          id: { type: 'number' },
         },
         required: ['id'],
       },
@@ -246,3 +255,6 @@ export default async function productRoutes(fastify: FastifyInstance): Promise<v
     },
   }, productController.toggleStatus);
 }
+
+productRoutes.autoPrefix = '/products';
+export default productRoutes;

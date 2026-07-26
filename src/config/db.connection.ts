@@ -13,7 +13,7 @@ const pool = new Pool({
 
 pool.on('error', (err) => {
   logger.error({ err }, 'Unexpected database error');
-  process.exit(-1);
+  process.exit(1);
 });
 
 export const db = drizzle(pool, {

@@ -1,5 +1,6 @@
 import { UserModel } from '../models/user.model.js';
 import { User } from '../config/db.schemas.js';
+import { PaginatedResponse, PaginationParams } from '../types/index.js';
 
 export class UserService {
   private userModel: UserModel;
@@ -8,8 +9,8 @@ export class UserService {
     this.userModel = new UserModel();
   }
 
-  async findAll(): Promise<Omit<User, 'password'>[]> {
-    return await this.userModel.findAll();
+  async findAll(pagination?: PaginationParams): Promise<PaginatedResponse<Omit<User, 'password'>>> {
+    return await this.userModel.findAll(pagination);
   }
 
   async findById(id: number): Promise<Omit<User, 'password'> | null> {

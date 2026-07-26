@@ -1,19 +1,8 @@
 import { z } from 'zod';
+import { PaginationParams } from '../types/index.js';
 
 export function validateSchema<T>(schema: z.ZodSchema<T>, data: unknown): T {
-  try {
-    return schema.parse(data);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errors = error.errors.map((e) => ({
-        field: e.path.join('.'),
-        message: e.message,
-        code: e.code,
-      }));
-      throw new Error(JSON.stringify(errors));
-    }
-    throw error;
-  }
+  return schema.parse(data);
 }
 
 export const idSchema = z.object({
@@ -26,3 +15,13 @@ export const paginationSchema = z.object({
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
+
+export type PaginationInput = z.infer<typeof paginationSchema>;
+
+export function parsePagination(query: Record<string, unknown>): PaginationParams {
+  const result = paginationSchema.safeParse(query);
+  if (!result.success) {
+    return { page: 1, limit: 10, sortOrder: 'desc' };
+  }
+  return result.data;
+}

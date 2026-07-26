@@ -4,9 +4,10 @@ import env from '../config/env.js';
 
 export default async function corsPlugin(fastify: FastifyInstance): Promise<void> {
   const origins = env.CORS_ORIGIN.split(',').filter(Boolean);
-  
-  fastify.register(fastifyCors, {
-    origin: origins.length > 0 ? origins : true,
+  const hasWildcard = origins.includes('*');
+
+  await fastify.register(fastifyCors, {
+    origin: hasWildcard ? true : (origins.length > 0 ? origins : true),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

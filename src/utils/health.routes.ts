@@ -18,7 +18,7 @@ export default async function healthRoutes(fastify: FastifyInstance): Promise<vo
               type: 'object',
               properties: {
                 status: { type: 'string' },
-                poolSize: { type: 'number' },
+                totalCount: { type: 'number' },
                 idleCount: { type: 'number' },
                 waitingCount: { type: 'number' },
               },

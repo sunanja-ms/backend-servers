@@ -16,7 +16,7 @@ export const updateProductSchema = z.object({
 });
 
 export const updateStockSchema = z.object({
-  quantity: z.number().int().positive('Quantity must be positive'),
+  quantity: z.number().int().refine((val) => val !== 0, 'Quantity must be non-zero'),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

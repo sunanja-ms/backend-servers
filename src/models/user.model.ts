@@ -1,13 +1,47 @@
 import { db } from '../config/db.connection.js';
 import { users, User, NewUser } from '../config/db.schemas.js';
-import { eq } from 'drizzle-orm';
+import { eq, asc, desc, sql, Column } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger.js';
+import { PaginatedResponse, PaginationParams } from '../types/index.js';
+
+const userSortableColumns: Record<string, Column> = {
+  name: users.name,
+  email: users.email,
+  role: users.role,
+  createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
+};
 
 export class UserModel {
-  async findAll(): Promise<Omit<User, 'password'>[]> {
-    const allUsers: User[] = await db.select().from(users);
-    return allUsers.map(({ password, ...user }) => user);
+  async findAll(
+    pagination?: PaginationParams
+  ): Promise<PaginatedResponse<Omit<User, 'password'>>> {
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 10;
+    const offset = (page - 1) * limit;
+
+    const sortColumn = pagination?.sortBy ? userSortableColumns[pagination.sortBy] : undefined;
+    const orderBy = sortColumn
+      ? pagination?.sortOrder === 'asc'
+        ? asc(sortColumn)
+        : desc(sortColumn)
+      : desc(users.createdAt);
+
+    const [allUsers, countResult] = await Promise.all([
+      db.select().from(users).orderBy(orderBy).limit(limit).offset(offset),
+      db.select({ total: sql<number>`count(*)::int` }).from(users),
+    ]);
+
+    const total = countResult[0]?.total ?? 0;
+
+    return {
+      data: allUsers.map(({ password, ...user }) => user),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: number): Promise<Omit<User, 'password'> | null> {
@@ -43,7 +77,7 @@ export class UserModel {
     id: number,
     data: Partial<Omit<User, 'id' | 'password' | 'createdAt' | 'updatedAt'>>
   ): Promise<Omit<User, 'password'> | null> {
-    const updateData: Partial<User> = {
+    const updateData: Partial<Omit<User, 'id' | 'password' | 'createdAt' | 'updatedAt'>> & { updatedAt: Date } = {
       ...data,
       updatedAt: new Date(),
     };

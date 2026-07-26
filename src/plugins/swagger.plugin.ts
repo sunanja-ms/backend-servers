@@ -4,37 +4,32 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 import env from '../config/env.js';
 
 export default async function swaggerPlugin(fastify: FastifyInstance): Promise<void> {
-  const isDevelopment = env.NODE_ENV !== 'production';
-  
-  // Always register Swagger in development, optional in production
-  if (!isDevelopment) {
-    // In production, only register if explicitly enabled
-    if (process.env.ENABLE_SWAGGER !== 'true') {
-      return;
-    }
+  const isProduction = env.NODE_ENV === 'production';
+
+  if (isProduction && process.env.ENABLE_SWAGGER !== 'true') {
+    return;
   }
 
-  // Register Swagger/OpenAPI
   await fastify.register(fastifySwagger, {
     openapi: {
       openapi: '3.0.3',
       info: {
         title: 'Fastify Backend API',
         description: `
-# 🚀 Fastify Backend API Documentation
+# Fastify Backend API Documentation
 
 ## Overview
 Production-ready REST API built with Fastify, Drizzle ORM, and PostgreSQL.
 
 ## Features
-- 🔐 **JWT Authentication** - Secure token-based authentication
-- 👤 **User Management** - Full CRUD operations for users
-- 📦 **Product Management** - Complete product lifecycle management
-- 🛡️ **Role-Based Access** - Admin, Moderator, and User roles
-- 📊 **Rate Limiting** - DDoS protection (100 req/min)
-- 📝 **Swagger/OpenAPI** - Interactive API documentation
-- 🔒 **Security Headers** - Helmet.js integration
-- 📈 **Structured Logging** - Pino integration
+- JWT Authentication - Secure token-based authentication
+- User Management - Full CRUD operations for users
+- Product Management - Complete product lifecycle management
+- Role-Based Access - Admin, Moderator, and User roles
+- Rate Limiting - DDoS protection (100 req/min)
+- Swagger/OpenAPI - Interactive API documentation
+- Security Headers - Helmet.js integration
+- Structured Logging - Pino integration
 
 ## Authentication
 Most endpoints require authentication. Include the JWT token in the Authorization header:
@@ -76,89 +71,38 @@ All responses follow a consistent format:
   "details": [ ... ]
 }
 \`\`\`
-
-## Testing
-### cURL Examples
-\`\`\`bash
-# Register user
-curl -X POST http://localhost:3000/api/v1/auth/register \\
-  -H "Content-Type: application/json" \\
-  -d '{"email":"test@example.com","password":"password123","name":"Test User"}'
-
-# Login
-curl -X POST http://localhost:3000/api/v1/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"email":"test@example.com","password":"password123"}'
-
-# Get profile (with token)
-curl -X GET http://localhost:3000/api/v1/auth/me \\
-  -H "Authorization: Bearer YOUR_TOKEN"
-\`\`\`
         `,
         version: '1.0.0',
         contact: {
           name: 'API Support',
-          email: 'support@example.com',
-          url: 'https://example.com',
         },
         license: {
           name: 'MIT',
           url: 'https://opensource.org/licenses/MIT',
         },
-        termsOfService: 'https://example.com/terms',
       },
       servers: [
         {
           url: `http://localhost:${env.PORT}`,
           description: 'Development Server',
-          variables: {
-            port: {
-              default: env.PORT,
-              description: 'Server port',
-            },
-          },
-        },
-        {
-          url: 'https://api.example.com',
-          description: 'Production Server',
-        },
-        {
-          url: 'https://staging-api.example.com',
-          description: 'Staging Server',
         },
       ],
       tags: [
         {
           name: 'Health',
           description: 'Health check and monitoring endpoints',
-          externalDocs: {
-            description: 'Health monitoring guide',
-            url: 'https://example.com/health-guide',
-          },
         },
         {
           name: 'Auth',
           description: 'Authentication endpoints - Register, Login, Profile',
-          externalDocs: {
-            description: 'Authentication guide',
-            url: 'https://example.com/auth-guide',
-          },
         },
         {
           name: 'Users',
           description: 'User management endpoints - CRUD operations',
-          externalDocs: {
-            description: 'User management guide',
-            url: 'https://example.com/users-guide',
-          },
         },
         {
           name: 'Products',
           description: 'Product management endpoints - CRUD operations',
-          externalDocs: {
-            description: 'Product management guide',
-            url: 'https://example.com/products-guide',
-          },
         },
       ],
       components: {
@@ -171,7 +115,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
           },
         },
         schemas: {
-          // === Common Response Schemas ===
           SuccessResponse: {
             type: 'object',
             properties: {
@@ -199,35 +142,30 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
               },
             },
           },
-          
-          // === User Schemas ===
           User: {
             type: 'object',
             properties: {
               id: { type: 'number', example: 1 },
               email: { type: 'string', format: 'email', example: 'user@example.com' },
               name: { type: 'string', example: 'John Doe' },
-              role: { 
-                type: 'string', 
+              role: {
+                type: 'string',
                 enum: ['admin', 'moderator', 'user'],
-                example: 'user' 
+                example: 'user',
               },
               isActive: { type: 'boolean', example: true },
-              lastLoginAt: { 
-                type: 'string', 
+              lastLoginAt: {
+                type: 'string',
                 format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z',
-                nullable: true 
+                nullable: true,
               },
-              createdAt: { 
-                type: 'string', 
+              createdAt: {
+                type: 'string',
                 format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z' 
               },
-              updatedAt: { 
-                type: 'string', 
+              updatedAt: {
+                type: 'string',
                 format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z' 
               },
             },
           },
@@ -256,47 +194,21 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
               },
             ],
           },
-          
-          // === Auth Schemas ===
           RegisterRequest: {
             type: 'object',
             required: ['email', 'password', 'name'],
             properties: {
-              email: { 
-                type: 'string', 
-                format: 'email', 
-                example: 'user@example.com',
-                description: 'User email address (unique)',
-              },
-              password: { 
-                type: 'string', 
-                minLength: 6, 
-                example: 'password123',
-                description: 'Password (minimum 6 characters)',
-              },
-              name: { 
-                type: 'string', 
-                minLength: 2, 
-                example: 'John Doe',
-                description: 'User full name',
-              },
+              email: { type: 'string', format: 'email' },
+              password: { type: 'string', minLength: 6 },
+              name: { type: 'string', minLength: 2 },
             },
           },
           LoginRequest: {
             type: 'object',
             required: ['email', 'password'],
             properties: {
-              email: { 
-                type: 'string', 
-                format: 'email', 
-                example: 'user@example.com',
-                description: 'User email address',
-              },
-              password: { 
-                type: 'string', 
-                example: 'password123',
-                description: 'User password',
-              },
+              email: { type: 'string', format: 'email' },
+              password: { type: 'string' },
             },
           },
           LoginResponse: {
@@ -308,11 +220,7 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
                   data: {
                     type: 'object',
                     properties: {
-                      token: { 
-                        type: 'string', 
-                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                        description: 'JWT access token (valid for 7 days)',
-                      },
+                      token: { type: 'string' },
                       user: { $ref: '#/components/schemas/User' },
                     },
                   },
@@ -320,61 +228,18 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
               },
             ],
           },
-          ValidateTokenResponse: {
-            type: 'object',
-            allOf: [
-              { $ref: '#/components/schemas/SuccessResponse' },
-              {
-                properties: {
-                  data: {
-                    type: 'object',
-                    properties: {
-                      valid: { type: 'boolean', example: true },
-                      user: {
-                        type: 'object',
-                        properties: {
-                          id: { type: 'number', example: 1 },
-                          email: { type: 'string', example: 'user@example.com' },
-                          name: { type: 'string', example: 'John Doe' },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            ],
-          },
-          
-          // === Product Schemas ===
           Product: {
             type: 'object',
             properties: {
               id: { type: 'number', example: 1 },
               name: { type: 'string', example: 'Laptop Pro' },
-              description: { 
-                type: 'string', 
-                example: 'High-end laptop with 16GB RAM',
-                nullable: true 
-              },
-              price: { 
-                type: 'number', 
-                format: 'decimal',
-                example: 15000000,
-                description: 'Price in IDR',
-              },
+              description: { type: 'string', nullable: true },
+              price: { type: 'number', format: 'decimal' },
               stock: { type: 'number', example: 10 },
               userId: { type: 'number', example: 1 },
               isActive: { type: 'boolean', example: true },
-              createdAt: { 
-                type: 'string', 
-                format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z' 
-              },
-              updatedAt: { 
-                type: 'string', 
-                format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z' 
-              },
+              createdAt: { type: 'string', format: 'date-time' },
+              updatedAt: { type: 'string', format: 'date-time' },
             },
           },
           ProductResponse: {
@@ -406,158 +271,58 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             type: 'object',
             required: ['name', 'price'],
             properties: {
-              name: { 
-                type: 'string', 
-                minLength: 1, 
-                example: 'Laptop Pro',
-                description: 'Product name',
-              },
-              description: { 
-                type: 'string', 
-                example: 'High-end laptop with 16GB RAM',
-                description: 'Product description (optional)',
-              },
-              price: { 
-                type: 'number', 
-                minimum: 0, 
-                example: 15000000,
-                description: 'Product price in IDR',
-              },
-              stock: { 
-                type: 'number', 
-                minimum: 0, 
-                default: 0, 
-                example: 10,
-                description: 'Available stock quantity',
-              },
+              name: { type: 'string', minLength: 1 },
+              description: { type: 'string' },
+              price: { type: 'number', minimum: 0 },
+              stock: { type: 'number', minimum: 0, default: 0 },
             },
           },
           UpdateProductRequest: {
             type: 'object',
             properties: {
-              name: { 
-                type: 'string', 
-                minLength: 1, 
-                example: 'Laptop Pro Max',
-                description: 'Product name (optional)',
-              },
-              description: { 
-                type: 'string', 
-                example: 'Updated description',
-                description: 'Product description (optional)',
-              },
-              price: { 
-                type: 'number', 
-                minimum: 0, 
-                example: 18000000,
-                description: 'Product price (optional)',
-              },
-              stock: { 
-                type: 'number', 
-                minimum: 0, 
-                example: 15,
-                description: 'Stock quantity (optional)',
-              },
-              isActive: { 
-                type: 'boolean', 
-                example: true,
-                description: 'Active status (optional)',
-              },
+              name: { type: 'string', minLength: 1 },
+              description: { type: 'string' },
+              price: { type: 'number', minimum: 0 },
+              stock: { type: 'number', minimum: 0 },
+              isActive: { type: 'boolean' },
             },
           },
           UpdateStockRequest: {
             type: 'object',
             required: ['quantity'],
             properties: {
-              quantity: { 
-                type: 'number', 
-                minimum: 0, 
-                example: 5,
-                description: 'Quantity to add (positive) or remove (negative)',
-              },
+              quantity: { type: 'number', minimum: 1 },
             },
           },
           ToggleStatusRequest: {
             type: 'object',
             required: ['isActive'],
             properties: {
-              isActive: { 
-                type: 'boolean', 
-                example: false,
-                description: 'Set product active/inactive status',
-              },
+              isActive: { type: 'boolean' },
             },
           },
-          
-          // === Update Schemas ===
           UpdateUserRequest: {
             type: 'object',
             properties: {
-              name: { 
-                type: 'string', 
-                minLength: 2, 
-                example: 'Jane Doe',
-                description: 'User full name (optional)',
-              },
-              email: { 
-                type: 'string', 
-                format: 'email', 
-                example: 'jane@example.com',
-                description: 'User email (optional)',
-              },
+              name: { type: 'string', minLength: 2 },
+              email: { type: 'string', format: 'email' },
             },
           },
           UpdatePasswordRequest: {
             type: 'object',
             required: ['currentPassword', 'newPassword'],
             properties: {
-              currentPassword: { 
-                type: 'string', 
-                minLength: 6, 
-                example: 'oldpassword123',
-                description: 'Current password',
-              },
-              newPassword: { 
-                type: 'string', 
-                minLength: 6, 
-                example: 'newpassword123',
-                description: 'New password (minimum 6 characters)',
-              },
+              currentPassword: { type: 'string', minLength: 6 },
+              newPassword: { type: 'string', minLength: 6 },
             },
           },
-          ToggleUserStatusRequest: {
-            type: 'object',
-            required: ['isActive'],
-            properties: {
-              isActive: { 
-                type: 'boolean', 
-                example: false,
-                description: 'Set user active/inactive status',
-              },
-            },
-          },
-          
-          // === Health Schemas ===
           HealthResponse: {
             type: 'object',
             properties: {
               status: { type: 'string', example: 'ok' },
-              timestamp: { 
-                type: 'string', 
-                format: 'date-time',
-                example: '2026-07-22T15:26:09.998Z' 
-              },
-              uptime: { type: 'number', example: 123.45 },
-              environment: { type: 'string', example: 'development' },
-              database: {
-                type: 'object',
-                properties: {
-                  status: { type: 'string', example: 'connected' },
-                  totalCount: { type: 'number', example: 10 },
-                  idleCount: { type: 'number', example: 5 },
-                  waitingCount: { type: 'number', example: 0 },
-                },
-              },
+              timestamp: { type: 'string', format: 'date-time' },
+              uptime: { type: 'number' },
+              environment: { type: 'string' },
             },
           },
         },
@@ -576,12 +341,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
-                example: {
-                  success: false,
-                  error: 'Unauthorized',
-                  message: 'Invalid or expired token',
-                  statusCode: 401,
-                },
               },
             },
           },
@@ -590,12 +349,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
-                example: {
-                  success: false,
-                  error: 'Forbidden',
-                  message: 'Insufficient permissions',
-                  statusCode: 403,
-                },
               },
             },
           },
@@ -604,12 +357,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
-                example: {
-                  success: false,
-                  error: 'Not Found',
-                  message: 'Resource not found',
-                  statusCode: 404,
-                },
               },
             },
           },
@@ -618,33 +365,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
-                example: {
-                  success: false,
-                  error: 'Validation Error',
-                  message: 'Invalid request data',
-                  statusCode: 400,
-                  details: [
-                    {
-                      field: 'email',
-                      message: 'Invalid email format',
-                      code: 'invalid_string',
-                    },
-                  ],
-                },
-              },
-            },
-          },
-          RateLimitExceeded: {
-            description: 'Too Many Requests - Rate limit exceeded',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-                example: {
-                  success: false,
-                  error: 'Too Many Requests',
-                  message: 'Rate limit exceeded. Please try again later.',
-                  statusCode: 429,
-                },
               },
             },
           },
@@ -655,14 +375,9 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
           bearerAuth: [],
         },
       ],
-      externalDocs: {
-        description: 'Find more info here',
-        url: 'https://example.com/api-docs',
-      },
     },
   });
 
-  // Register Swagger UI
   await fastify.register(fastifySwaggerUi, {
     routePrefix: '/docs',
     staticCSP: true,
@@ -687,7 +402,7 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
       withCredentials: true,
     },
     theme: {
-      title: '🚀 Fastify API Documentation',
+      title: 'Fastify API Documentation',
       css: [
         {
           filename: 'theme.css',
@@ -700,9 +415,6 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
             }
             .swagger-ui .info .title {
               color: #2d3748;
-            }
-            .swagger-ui .info .title small {
-              background-color: #4a5568;
             }
             .swagger-ui .scheme-container {
               background-color: #f7fafc;
@@ -720,6 +432,5 @@ curl -X GET http://localhost:3000/api/v1/auth/me \\
     },
   });
 
-  // Log Swagger registration
-  fastify.log.info('📚 Swagger documentation available at /docs');
+  fastify.log.info('Swagger documentation available at /docs');
 }

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../services/auth.service.js';
 import { registerSchema, loginSchema } from '../schemas/user.schema.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { AppError } from '../types/errors.js';
 
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -40,11 +41,7 @@ export class AuthController {
   validateToken = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const token = request.headers.authorization?.replace('Bearer ', '');
     if (!token) {
-      return reply.status(400).send({
-        success: false,
-        error: 'Bad Request',
-        message: 'Token is required',
-      });
+      throw AppError.badRequest('Token is required');
     }
 
     const decoded = await this.authService.validateToken(token);

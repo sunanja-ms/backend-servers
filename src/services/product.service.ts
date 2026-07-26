@@ -1,5 +1,6 @@
 import { ProductModel } from '../models/product.model.js';
 import { Product, NewProduct } from '../config/db.schemas.js';
+import { PaginatedResponse, PaginationParams } from '../types/index.js';
 
 export class ProductService {
   private productModel: ProductModel;
@@ -8,8 +9,8 @@ export class ProductService {
     this.productModel = new ProductModel();
   }
 
-  async findAll(userId?: number): Promise<Product[]> {
-    return await this.productModel.findAll(userId);
+  async findAll(userId?: number, pagination?: PaginationParams): Promise<PaginatedResponse<Product>> {
+    return await this.productModel.findAll(userId, pagination);
   }
 
   async findById(id: number): Promise<Product | null> {

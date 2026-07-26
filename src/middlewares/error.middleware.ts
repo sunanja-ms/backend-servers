@@ -1,14 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
+import { AppError } from '../types/errors.js';
+import { ErrorResponse } from '../types/index.js';
 import logger from '../utils/logger.js';
-
-interface ErrorResponse {
-  success: false;
-  error: string;
-  message: string;
-  statusCode: number;
-  details?: unknown;
-}
+import env from '../config/env.js';
 
 export function setupErrorHandler(fastify: FastifyInstance): void {
   fastify.setErrorHandler((error: any, request, reply) => {
@@ -23,8 +18,21 @@ export function setupErrorHandler(fastify: FastifyInstance): void {
       ip: request.ip,
     });
 
+    if (error instanceof AppError) {
+      const response: ErrorResponse = {
+        success: false,
+        error: error.name,
+        message: error.message,
+        statusCode: error.statusCode,
+      };
+      if (error.details) {
+        response.details = error.details;
+      }
+      return reply.status(error.statusCode).send(response);
+    }
+
     if (error instanceof ZodError) {
-      return reply.status(400).send({
+      const response: ErrorResponse = {
         success: false,
         error: 'Validation Error',
         message: 'Invalid request data',
@@ -34,7 +42,8 @@ export function setupErrorHandler(fastify: FastifyInstance): void {
           message: err.message,
           code: err.code,
         })),
-      } as ErrorResponse);
+      };
+      return reply.status(400).send(response);
     }
 
     if (error.code === 'FST_JWT_NO_AUTHORIZATION_IN_HEADER') {
@@ -73,7 +82,7 @@ export function setupErrorHandler(fastify: FastifyInstance): void {
       } as ErrorResponse);
     }
 
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = env.NODE_ENV === 'production';
     return reply.status(statusCode).send({
       success: false,
       error: error?.name || 'Internal Server Error',
