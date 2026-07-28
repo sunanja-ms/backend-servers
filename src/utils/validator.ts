@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PaginationParams } from '../types/index.js';
+import type { PaginationParams } from '../types/index.js';
 
 export function validateSchema<T>(schema: z.ZodSchema<T>, data: unknown): T {
   return schema.parse(data);
@@ -14,6 +14,10 @@ export const paginationSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  search: z.string().optional(),
+  isActive: z.enum(['true', 'false']).optional(),
+  includeDeleted: z.coerce.boolean().default(false),
+  categoryId: z.coerce.number().int().positive().optional(),
 });
 
 export type PaginationInput = z.infer<typeof paginationSchema>;

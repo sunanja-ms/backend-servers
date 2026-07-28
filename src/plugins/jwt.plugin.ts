@@ -17,7 +17,7 @@ export default async function jwtPlugin(fastify: FastifyInstance): Promise<void>
   await fastify.register(fastifyJwt, {
     secret: env.JWT_SECRET,
     sign: {
-      expiresIn: '7d',
+      expiresIn: env.JWT_EXPIRES_IN,
       algorithm: 'HS256',
     },
     verify: {

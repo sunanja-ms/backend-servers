@@ -3,7 +3,8 @@ import { UserService } from '../services/user.service.js';
 import { updateUserSchema, updatePasswordSchema } from '../schemas/user.schema.js';
 import { toggleStatusSchema } from '../schemas/common.schema.js';
 import { idSchema, parsePagination } from '../utils/validator.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
+import type { AuthRequest } from '../middlewares/auth.middleware.js';
+import { invalidateUserCache } from '../middlewares/auth.middleware.js';
 import { AppError } from '../types/errors.js';
 
 export class UserController {
@@ -57,6 +58,8 @@ export class UserController {
       throw AppError.notFound('User not found');
     }
 
+    invalidateUserCache(id);
+
     reply.send({
       success: true,
       message: 'User updated successfully',
@@ -76,7 +79,30 @@ export class UserController {
       throw AppError.notFound('User not found');
     }
 
+    invalidateUserCache(id);
+
     reply.status(204).send();
+  };
+
+  restore = async (
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply
+  ): Promise<void> => {
+    const { id } = idSchema.parse({ id: request.params.id });
+
+    const user = await this.userService.restoreUser(id);
+
+    if (!user) {
+      throw AppError.notFound('User not found or not deleted');
+    }
+
+    invalidateUserCache(id);
+
+    reply.send({
+      success: true,
+      message: 'User restored successfully',
+      data: user,
+    });
   };
 
   updatePassword = async (
@@ -99,6 +125,8 @@ export class UserController {
       throw AppError.badRequest('Invalid current password or user not found');
     }
 
+    invalidateUserCache(id);
+
     reply.send({
       success: true,
       message: 'Password updated successfully',
@@ -117,6 +145,8 @@ export class UserController {
     if (!user) {
       throw AppError.notFound('User not found');
     }
+
+    invalidateUserCache(id);
 
     reply.send({
       success: true,

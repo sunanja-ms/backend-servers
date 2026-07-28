@@ -5,6 +5,7 @@ export const createProductSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive('Price must be positive'),
   stock: z.number().int().min(0).default(0),
+  categoryId: z.number().int().positive().optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -13,10 +14,11 @@ export const updateProductSchema = z.object({
   price: z.number().positive().optional(),
   stock: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  categoryId: z.number().int().positive().optional().nullable(),
 });
 
 export const updateStockSchema = z.object({
-  quantity: z.number().int().refine((val) => val !== 0, 'Quantity must be non-zero'),
+  quantity: z.number().int().positive('Quantity must be positive'),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

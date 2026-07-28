@@ -19,9 +19,6 @@
           <label>Email</label>
           <input v-model="profileForm.email" type="email" />
         </div>
-        <div v-if="profileMsg" :class="profileMsg.type === 'error' ? 'alert alert-error' : 'alert alert-success'">
-          {{ profileMsg.text }}
-        </div>
         <button type="submit" class="btn btn-primary" :disabled="updating">
           {{ updating ? 'Saving...' : 'Save Changes' }}
         </button>
@@ -39,9 +36,6 @@
           <label>New Password</label>
           <input v-model="pwForm.newPassword" type="password" required minlength="6" />
         </div>
-        <div v-if="pwMsg" :class="pwMsg.type === 'error' ? 'alert alert-error' : 'alert alert-success'">
-          {{ pwMsg.text }}
-        </div>
         <button type="submit" class="btn btn-primary" :disabled="changingPw">
           {{ changingPw ? 'Changing...' : 'Change Password' }}
         </button>
@@ -53,13 +47,13 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { updateUser, changePassword } from '../api/users'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 const profileForm = reactive({ name: '', email: '' })
 const pwForm = reactive({ currentPassword: '', newPassword: '' })
-const profileMsg = ref(null)
-const pwMsg = ref(null)
 const updating = ref(false)
 const changingPw = ref(false)
 
@@ -70,13 +64,13 @@ onMounted(() => {
 
 async function handleUpdate() {
   updating.value = true
-  profileMsg.value = null
   try {
+    if (!auth.user?.id) return
     await updateUser(auth.user.id, { name: profileForm.name, email: profileForm.email })
     await auth.fetchUser()
-    profileMsg.value = { type: 'success', text: 'Profile updated!' }
+    toast.success('Profile updated!')
   } catch (err) {
-    profileMsg.value = { type: 'error', text: err.response?.data?.message || 'Update failed' }
+    toast.error(err.response?.data?.message || 'Update failed')
   } finally {
     updating.value = false
   }
@@ -84,14 +78,14 @@ async function handleUpdate() {
 
 async function handlePassword() {
   changingPw.value = true
-  pwMsg.value = null
   try {
+    if (!auth.user?.id) return
     await changePassword(auth.user.id, pwForm)
-    pwMsg.value = { type: 'success', text: 'Password changed!' }
+    toast.success('Password changed!')
     pwForm.currentPassword = ''
     pwForm.newPassword = ''
   } catch (err) {
-    pwMsg.value = { type: 'error', text: err.response?.data?.message || 'Password change failed' }
+    toast.error(err.response?.data?.message || 'Password change failed')
   } finally {
     changingPw.value = false
   }

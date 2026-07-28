@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { AppError } from '../types/errors.js';
-import { ErrorResponse } from '../types/index.js';
+import type { ErrorResponse } from '../types/index.js';
 import logger from '../utils/logger.js';
 import env from '../config/env.js';
 
@@ -74,11 +74,16 @@ export function setupErrorHandler(fastify: FastifyInstance): void {
     }
 
     if (error.code === 'FST_RATE_LIMIT') {
+      const retryAfter = error.headers?.['retry-after'] || Math.ceil(parseInt(env.RATE_LIMIT_WINDOW, 10) / 1000);
+      reply.header('Retry-After', retryAfter);
       return reply.status(429).send({
         success: false,
         error: 'Too Many Requests',
         message: 'Rate limit exceeded. Please try again later.',
         statusCode: 429,
+        retryAfter: Number(retryAfter),
+        limit: parseInt(env.RATE_LIMIT_MAX, 10),
+        window: parseInt(env.RATE_LIMIT_WINDOW, 10),
       } as ErrorResponse);
     }
 

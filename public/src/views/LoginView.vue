@@ -11,7 +11,6 @@
           <label>Password</label>
           <input v-model="form.password" type="password" required placeholder="password" />
         </div>
-        <div v-if="error" class="alert alert-error">{{ error }}</div>
         <button type="submit" class="btn btn-primary btn-full" :disabled="auth.loading">
           {{ auth.loading ? 'Logging in...' : 'Login' }}
         </button>
@@ -25,19 +24,20 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 const router = useRouter()
 const form = ref({ email: '', password: '' })
-const error = ref('')
 
 async function handleLogin() {
-  error.value = ''
   try {
     await auth.login(form.value.email, form.value.password)
+    toast.success('Welcome back!')
     router.push('/')
   } catch (err) {
-    error.value = err.response?.data?.message || 'Login failed'
+    toast.error(err.response?.data?.message || 'Login failed')
   }
 }
 </script>

@@ -1,9 +1,12 @@
 import { db } from '../config/db.connection.js';
 import { users, User, NewUser } from '../config/db.schemas.js';
-import { eq, asc, desc, sql, Column } from 'drizzle-orm';
+import { eq, asc, desc, sql, isNull, and, or, ilike, Column } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import logger from '../utils/logger.js';
-import { PaginatedResponse, PaginationParams } from '../types/index.js';
+import env from '../config/env.js';
+import type { PaginatedResponse, PaginationParams } from '../types/index.js';
+
+const BCRYPT_ROUNDS = parseInt(env.BCRYPT_ROUNDS, 10);
 
 const userSortableColumns: Record<string, Column> = {
   name: users.name,
@@ -28,9 +31,20 @@ export class UserModel {
         : desc(sortColumn)
       : desc(users.createdAt);
 
+    const conditions = [isNull(users.deletedAt)];
+    if (pagination?.includeDeleted) conditions.pop()
+    if (pagination?.search) {
+      const q = `%${pagination.search}%`
+      conditions.push(or(ilike(users.name, q), ilike(users.email, q))!)
+    }
+    if (pagination?.isActive) {
+      conditions.push(eq(users.isActive, pagination.isActive === 'true'))
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
     const [allUsers, countResult] = await Promise.all([
-      db.select().from(users).orderBy(orderBy).limit(limit).offset(offset),
-      db.select({ total: sql<number>`count(*)::int` }).from(users),
+      db.select().from(users).where(whereClause as any).orderBy(orderBy).limit(limit).offset(offset),
+      db.select({ total: sql<number>`count(*)::int` }).from(users).where(whereClause as any),
     ]);
 
     const total = countResult[0]?.total ?? 0;
@@ -45,7 +59,7 @@ export class UserModel {
   }
 
   async findById(id: number): Promise<Omit<User, 'password'> | null> {
-    const user: User[] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const user: User[] = await db.select().from(users).where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1);
     if (!user[0]) return null;
 
     const { password, ...userWithoutPassword } = user[0];
@@ -53,12 +67,12 @@ export class UserModel {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const user: User[] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const user: User[] = await db.select().from(users).where(and(eq(users.email, email), isNull(users.deletedAt))).limit(1);
     return user[0] || null;
   }
 
   async create(data: NewUser): Promise<Omit<User, 'password'>> {
-    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     const [user] = await db
       .insert(users)
       .values({ ...data, password: hashedPassword })
@@ -85,7 +99,7 @@ export class UserModel {
     const [user] = await db
       .update(users)
       .set(updateData)
-      .where(eq(users.id, id))
+      .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .returning();
 
     if (!user) return null;
@@ -96,13 +110,13 @@ export class UserModel {
   }
 
   async updatePassword(id: number, currentPassword: string, newPassword: string): Promise<boolean> {
-    const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const user = await db.select().from(users).where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1);
     if (!user[0]) return false;
 
     const isValid = await bcrypt.compare(currentPassword, user[0].password);
     if (!isValid) return false;
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await db
       .update(users)
       .set({ password: hashedPassword, updatedAt: new Date() })
@@ -113,19 +127,36 @@ export class UserModel {
   }
 
   async delete(id: number): Promise<boolean> {
-    const [user] = await db.delete(users).where(eq(users.id, id)).returning();
+    const [user] = await db
+      .update(users)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(users.id, id), isNull(users.deletedAt)))
+      .returning();
 
     if (user) {
-      logger.info(`User deleted: ${user.email}`);
+      logger.info(`User soft-deleted: ${user.email}`);
     }
     return !!user;
+  }
+
+  async restore(id: number): Promise<Omit<User, 'password'> | null> {
+    const [user] = await db
+      .update(users)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!user) return null;
+    logger.info(`User restored: ${user.email}`);
+    const { password, ...rest } = user;
+    return rest;
   }
 
   async toggleStatus(id: number, isActive: boolean): Promise<Omit<User, 'password'> | null> {
     const [user] = await db
       .update(users)
       .set({ isActive, updatedAt: new Date() })
-      .where(eq(users.id, id))
+      .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .returning();
 
     if (!user) return null;
@@ -135,10 +166,24 @@ export class UserModel {
     return userWithoutPassword;
   }
 
+  async updatePasswordOnly(id: number, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  async updateEmailVerified(id: number): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
   async updateLastLogin(id: number): Promise<void> {
     await db
       .update(users)
       .set({ lastLoginAt: new Date() })
-      .where(eq(users.id, id));
+      .where(and(eq(users.id, id), isNull(users.deletedAt)));
   }
 }

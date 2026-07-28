@@ -56,15 +56,17 @@ function httpReq(method, path, body, headers = {}) {
 async function seedData() {
   console.log('\n--- Seeding test data ---');
 
+  const timestamp = Date.now();
+
   const adminReg = await httpReq('POST', '/api/v1/auth/register', {
-    email: 'loadtest_admin@test.com',
+    email: `loadtest_admin_${timestamp}@test.com`,
     password: 'password123',
     name: 'Load Test Admin',
   });
   console.log(`  Register admin: ${adminReg.status}`);
 
   const adminLogin = await httpReq('POST', '/api/v1/auth/login', {
-    email: 'loadtest_admin@test.com',
+    email: `loadtest_admin_${timestamp}@test.com`,
     password: 'password123',
   });
   const adminToken = adminLogin.body?.data?.token;
@@ -79,21 +81,25 @@ async function seedData() {
   const batchSize = 10;
   for (let b = 0; b < 10; b++) {
     const promises = [];
+    const batchEmails = [];
     for (let i = 0; i < batchSize; i++) {
       const idx = b * batchSize + i;
+      const email = `loaduser_${timestamp}_${idx}@test.com`;
+      batchEmails.push(email);
       promises.push(
         httpReq('POST', '/api/v1/auth/register', {
-          email: `loaduser_${idx}@test.com`,
+          email,
           password: 'password123',
           name: `Load User ${idx}`,
         })
       );
     }
     const results = await Promise.all(promises);
-    for (const r of results) {
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
       if (r.status === 201 || r.status === 409) {
         const login = await httpReq('POST', '/api/v1/auth/login', {
-          email: r.body?.data?.email || `loaduser_${results.indexOf(r)}@test.com`,
+          email: batchEmails[i],
           password: 'password123',
         });
         if (login.body?.data?.token) {
@@ -256,7 +262,7 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       setupRequest: (req) => {
         const idx = Math.floor(Math.random() * Math.min(10, userTokens.length));
-        return { ...req, body: JSON.stringify({ email: `loaduser_${idx}@test.com`, password: 'password123' }) };
+        return { ...req, body: JSON.stringify({ email: `loaduser_${timestamp}_${idx}@test.com`, password: 'password123' }) };
       },
     });
     printResult('POST /auth/login', r);

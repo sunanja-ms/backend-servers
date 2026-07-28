@@ -15,8 +15,6 @@
           <label>Password</label>
           <input v-model="form.password" type="password" required minlength="6" placeholder="Min 6 characters" />
         </div>
-        <div v-if="error" class="alert alert-error">{{ error }}</div>
-        <div v-if="success" class="alert alert-success">{{ success }}</div>
         <button type="submit" class="btn btn-primary btn-full" :disabled="auth.loading">
           {{ auth.loading ? 'Creating...' : 'Register' }}
         </button>
@@ -30,22 +28,20 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 const router = useRouter()
 const form = ref({ name: '', email: '', password: '' })
-const error = ref('')
-const success = ref('')
 
 async function handleRegister() {
-  error.value = ''
-  success.value = ''
   try {
     await auth.register(form.value.email, form.value.password, form.value.name)
-    success.value = 'Account created! Redirecting to login...'
+    toast.success('Account created! Redirecting to login...')
     setTimeout(() => router.push('/login'), 1500)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Registration failed'
+    toast.error(err.response?.data?.message || 'Registration failed')
   }
 }
 </script>

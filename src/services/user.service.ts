@@ -1,6 +1,6 @@
 import { UserModel } from '../models/user.model.js';
 import { User } from '../config/db.schemas.js';
-import { PaginatedResponse, PaginationParams } from '../types/index.js';
+import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 
 export class UserService {
   private userModel: UserModel;
@@ -30,6 +30,10 @@ export class UserService {
 
   async deleteUser(id: number): Promise<boolean> {
     return await this.userModel.delete(id);
+  }
+
+  async restoreUser(id: number): Promise<Omit<User, 'password'> | null> {
+    return await this.userModel.restore(id);
   }
 
   async toggleUserStatus(id: number, isActive: boolean): Promise<Omit<User, 'password'> | null> {

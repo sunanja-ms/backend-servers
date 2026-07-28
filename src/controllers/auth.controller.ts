@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../services/auth.service.js';
-import { registerSchema, loginSchema } from '../schemas/user.schema.js';
-import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from '../schemas/user.schema.js';
+import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { AppError } from '../types/errors.js';
 
 export class AuthController {
@@ -13,7 +13,7 @@ export class AuthController {
 
     reply.status(201).send({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully. Check email to verify.',
       data: user,
     });
   };
@@ -40,7 +40,7 @@ export class AuthController {
 
   validateToken = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const token = request.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
+    if (!token || token.length === 0) {
       throw AppError.badRequest('Token is required');
     }
 
@@ -48,6 +48,36 @@ export class AuthController {
     reply.send({
       success: true,
       data: { valid: true, user: decoded },
+    });
+  };
+
+  forgotPassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const { email } = forgotPasswordSchema.parse(request.body);
+    await this.authService.forgotPassword(email);
+
+    reply.send({
+      success: true,
+      message: 'If the email exists, a reset link has been sent.',
+    });
+  };
+
+  resetPassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const { token, password } = resetPasswordSchema.parse(request.body);
+    await this.authService.resetPassword(token, password);
+
+    reply.send({
+      success: true,
+      message: 'Password reset successfully.',
+    });
+  };
+
+  verifyEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const { token } = verifyEmailSchema.parse(request.body);
+    await this.authService.verifyEmail(token);
+
+    reply.send({
+      success: true,
+      message: 'Email verified successfully.',
     });
   };
 }

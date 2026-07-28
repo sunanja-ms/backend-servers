@@ -34,6 +34,10 @@ export interface PaginationParams {
   limit: number;
   sortBy?: string;
   sortOrder: 'asc' | 'desc';
+  search?: string;
+  isActive?: 'true' | 'false';
+  includeDeleted?: boolean;
+  categoryId?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -46,4 +50,13 @@ export interface PaginatedResponse<T> {
 
 export interface ToggleStatusRequest {
   isActive: boolean;
+}
+
+export interface ApiKeyInfo {
+  id: number;
+  name: string;
+  prefix: string;
+  expiresAt: Date;
+  lastUsedAt: Date | null;
+  createdAt: Date;
 }

@@ -1,39 +1,47 @@
 import { ProductModel } from '../models/product.model.js';
-import { Product, NewProduct } from '../config/db.schemas.js';
-import { PaginatedResponse, PaginationParams } from '../types/index.js';
+import { NewProduct } from '../config/db.schemas.js';
+import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 
 export class ProductService {
-  private productModel: ProductModel;
+  private productModel = new ProductModel();
 
-  constructor() {
-    this.productModel = new ProductModel();
+  async findAll(userId?: number, pagination?: PaginationParams): Promise<PaginatedResponse<any>> {
+    return this.productModel.findAll(userId, pagination);
   }
 
-  async findAll(userId?: number, pagination?: PaginationParams): Promise<PaginatedResponse<Product>> {
-    return await this.productModel.findAll(userId, pagination);
+  async findById(id: number): Promise<any | null> {
+    return this.productModel.findById(id);
   }
 
-  async findById(id: number): Promise<Product | null> {
-    return await this.productModel.findById(id);
+  async create(data: NewProduct): Promise<any> {
+    return this.productModel.create(data);
   }
 
-  async create(data: NewProduct): Promise<Product> {
-    return await this.productModel.create(data);
-  }
-
-  async update(id: number, data: Partial<NewProduct>): Promise<Product | null> {
-    return await this.productModel.update(id, data);
+  async update(id: number, data: Partial<NewProduct>): Promise<any | null> {
+    return this.productModel.update(id, data);
   }
 
   async delete(id: number): Promise<boolean> {
-    return await this.productModel.delete(id);
+    return this.productModel.delete(id);
   }
 
-  async updateStock(id: number, quantity: number): Promise<Product | null> {
-    return await this.productModel.updateStock(id, quantity);
+  async restore(id: number): Promise<any | null> {
+    return this.productModel.restore(id);
   }
 
-  async toggleProductStatus(id: number, isActive: boolean): Promise<Product | null> {
-    return await this.productModel.toggleStatus(id, isActive);
+  async updateStock(id: number, quantity: number): Promise<any | null> {
+    return this.productModel.updateStock(id, quantity);
+  }
+
+  async toggleProductStatus(id: number, isActive: boolean): Promise<any | null> {
+    return this.productModel.toggleStatus(id, isActive);
+  }
+
+  async addImage(productId: number, url: string, isPrimary?: boolean): Promise<any> {
+    return this.productModel.addImage(productId, url, isPrimary);
+  }
+
+  async deleteImage(imageId: number): Promise<boolean> {
+    return this.productModel.deleteImage(imageId);
   }
 }

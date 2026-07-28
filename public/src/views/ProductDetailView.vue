@@ -1,73 +1,81 @@
 <template>
-  <div class="page">
-    <button class="btn btn-sm" @click="$router.push('/products')">← Back to Products</button>
+  <div class="page" style="max-width:800px">
+    <div v-if="loading" class="loading">Loading product...</div>
 
-    <div v-if="loading" class="loading">Loading...</div>
-    <div v-else-if="error" class="alert alert-error">{{ error }}</div>
-    <template v-else-if="product">
-      <h1>{{ product.name }}</h1>
-      <div class="card">
-        <p><strong>Description:</strong> {{ product.description || 'No description' }}</p>
-        <p><strong>Price:</strong> ${{ product.price }}</p>
-        <p><strong>Stock:</strong> {{ product.stock }}</p>
-        <p>
-          <strong>Status:</strong>
-          <span :class="product.isActive ? 'badge-success' : 'badge-error'">
-            {{ product.isActive ? 'Active' : 'Inactive' }}
-          </span>
-        </p>
-        <p class="text-muted">Created: {{ new Date(product.createdAt).toLocaleString() }}</p>
-        <p class="text-muted">Updated: {{ new Date(product.updatedAt).toLocaleString() }}</p>
+    <div v-else-if="product">
+      <div class="page-header">
+        <h1>{{ product.name }}</h1>
       </div>
 
-      <div class="card mt-4">
-        <h3>Quick Stock Update</h3>
-        <form @submit.prevent="handleStock" class="inline-form">
-          <input v-model.number="stockQty" type="number" placeholder="Quantity (+/-)" />
-          <button type="submit" class="btn btn-primary" :disabled="!stockQty">Update</button>
-        </form>
-        <div v-if="stockMsg" :class="stockMsg.type === 'error' ? 'alert alert-error' : 'alert alert-success'">
-          {{ stockMsg.text }}
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <div class="product-card-price text-idr" style="font-size:32px;margin-bottom:12px">{{ formatIDR(product.price) }}</div>
+          <p>{{ product.description || 'No description' }}</p>
+          <p style="margin-top:12px"><strong>Stock:</strong> {{ product.stock > 0 ? product.stock : 'Out of stock' }}</p>
+          <p><strong>Category:</strong> {{ product.category?.name || 'Uncategorized' }}</p>
+          <p><strong>Status:</strong> <span :class="product.isActive ? 'badge-success' : 'badge-error'">{{ product.isActive ? 'Active' : 'Inactive' }}</span></p>
+        </div>
+        <div class="card">
+          <div v-if="product.images?.length">
+            <img :src="product.images[0].url" :alt="product.name" style="width:100%;border-radius:8px;max-height:300px;object-fit:cover" />
+          </div>
+          <div v-else class="product-card-image" style="height:200px">No Image</div>
+          <div class="form-group" style="margin-top:16px">
+            <label>Quantity</label>
+            <div class="cart-item-qty">
+              <button @click="qty = Math.max(1, qty - 1)">−</button>
+              <span>{{ qty }}</span>
+              <button @click="qty = Math.min(product.stock, qty + 1)">+</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" :disabled="product.stock < 1 || adding" @click="addToCart">
+            {{ adding ? 'Adding...' : (product.stock < 1 ? 'Out of Stock' : 'Add to Cart') }}
+          </button>
         </div>
       </div>
-    </template>
+    </div>
+
+    <div v-else class="shop-empty">
+      <h3>Product not found</h3>
+      <router-link to="/" class="btn btn-primary" style="margin-top:12px;display:inline-block">Browse Products</router-link>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getProduct, updateStock } from '../api/products'
+import { useRoute, useRouter } from 'vue-router'
+import { getProduct } from '../api/products'
+import { useCartStore } from '../stores/cart'
+import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
+const router = useRouter()
+const cartStore = useCartStore()
+const toast = useToastStore()
 const product = ref(null)
 const loading = ref(true)
-const error = ref('')
-const stockQty = ref(0)
-const stockMsg = ref(null)
+const qty = ref(1)
+const adding = ref(false)
 
-async function fetchProduct() {
+const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val))
+
+async function addToCart() {
+  if (!product.value || product.value.stock < 1) return
+  adding.value = true
+  try {
+    await cartStore.addItem(product.value.id, qty.value)
+    toast.success(`Added ${qty.value} × ${product.value.name} to cart`)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Failed to add to cart')
+  } finally { adding.value = false }
+}
+
+onMounted(async () => {
   try {
     const res = await getProduct(route.params.id)
     product.value = res.data.data
-  } catch (err) {
-    error.value = err.response?.data?.message || 'Product not found'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleStock() {
-  stockMsg.value = null
-  try {
-    await updateStock(product.value.id, { quantity: stockQty.value })
-    await fetchProduct()
-    stockMsg.value = { type: 'success', text: 'Stock updated!' }
-    stockQty.value = 0
-  } catch (err) {
-    stockMsg.value = { type: 'error', text: err.response?.data?.message || 'Failed' }
-  }
-}
-
-onMounted(fetchProduct)
+  } catch { product.value = null }
+  finally { loading.value = false }
+})
 </script>

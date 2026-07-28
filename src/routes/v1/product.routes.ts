@@ -21,6 +21,10 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           limit: { type: 'number', minimum: 1, maximum: 100, default: 10 },
           sortBy: { type: 'string', enum: ['name', 'price', 'stock', 'createdAt', 'updatedAt'] },
           sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+          search: { type: 'string' },
+          isActive: { type: 'string', enum: ['true', 'false'] },
+          categoryId: { type: 'number' },
+          includeDeleted: { type: 'boolean', default: false },
         },
       },
       response: {
@@ -231,6 +235,42 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
   }, productController.updateStock);
+
+  fastify.patch<{ Params: { id: string } }>('/:id/restore', {
+    preHandler: [requireRole(['admin'])],
+    schema: {
+      description: 'Restore soft-deleted product (Admin only)',
+      tags: ['Products'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' } },
+        required: ['id'],
+      },
+    },
+  }, productController.restore);
+
+  fastify.post<{ Params: { id: string } }>('/:id/images', {
+    schema: {
+      description: 'Upload product image',
+      tags: ['Products'],
+      security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
+    },
+  }, productController.uploadImage);
+
+  fastify.delete<{ Params: { id: string; imageId: string } }>('/:id/images/:imageId', {
+    schema: {
+      description: 'Delete product image',
+      tags: ['Products'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' }, imageId: { type: 'number' } },
+        required: ['id', 'imageId'],
+      },
+    },
+  }, productController.deleteImage);
 
   fastify.patch<{ Params: { id: string }; Body: { isActive: boolean } }>('/:id/toggle-status', {
     preHandler: [requireRole(['admin'])],

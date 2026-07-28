@@ -22,6 +22,9 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
           limit: { type: 'number', minimum: 1, maximum: 100, default: 10 },
           sortBy: { type: 'string', enum: ['name', 'email', 'role', 'createdAt', 'updatedAt'] },
           sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+          search: { type: 'string' },
+          isActive: { type: 'string', enum: ['true', 'false'] },
+          includeDeleted: { type: 'boolean', default: false },
         },
       },
       response: {
@@ -165,6 +168,20 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
   }, userController.updatePassword);
+
+  fastify.patch<{ Params: { id: string } }>('/:id/restore', {
+    preHandler: [requireRole(['admin'])],
+    schema: {
+      description: 'Restore soft-deleted user (Admin only)',
+      tags: ['Users'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' } },
+        required: ['id'],
+      },
+    },
+  }, userController.restore);
 
   fastify.patch<{ Params: { id: string }; Body: { isActive: boolean } }>('/:id/toggle-status', {
     preHandler: [requireRole(['admin'])],

@@ -6,9 +6,10 @@ import logger from '../utils/logger.js';
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30000,
+  max: 50,
+  idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 2000,
+  application_name: 'fastify-backend',
 });
 
 pool.on('error', (err) => {
