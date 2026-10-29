@@ -7,3 +7,7 @@ export const deleteUser = (id) => client.delete(`/users/${id}`)
 export const changePassword = (id, data) => client.post(`/users/${id}/change-password`, data)
 export const toggleUserStatus = (id, data) => client.patch(`/users/${id}/toggle-status`, data)
 export const restoreUser = (id) => client.patch(`/users/${id}/restore`)
+export const uploadAvatar = (id, formData) => client.post(`/users/${id}/avatar`, formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+})
+export const deleteAvatar = (id) => client.delete(`/users/${id}/avatar`)

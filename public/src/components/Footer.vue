@@ -1,9 +1,9 @@
 <template>
   <footer class="footer">
-    <p>&copy; {{ new Date().getFullYear() }} E-Store. All rights reserved.</p>
+    <p>© {{ year }} E-Store — Fastify · Vue 3 · HLS</p>
   </footer>
 </template>
 
-<style scoped>
-.footer { text-align: center; padding: 20px; font-size: 13px; color: var(--text-muted); margin-top: auto; border-top: 1px solid var(--border); }
-</style>
+<script setup>
+const year = new Date().getFullYear()
+</script>

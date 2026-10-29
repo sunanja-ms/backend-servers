@@ -34,6 +34,7 @@
 </template>
 
 <script setup>
+import { formatIDR } from '../utils/format'
 import { ref, onMounted } from 'vue'
 import { getOrders } from '../api/orders'
 
@@ -43,7 +44,6 @@ const page = ref(1)
 const totalPages = ref(1)
 const total = ref(0)
 
-const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val))
 
 function goPage(p) { page.value = p; fetchOrders() }
 

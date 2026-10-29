@@ -12,6 +12,10 @@ async function orderRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get<{ Params: { id: string } }>('/:id', { schema: { description: 'Get order detail', tags: ['Orders'], security: [{ bearerAuth: [] }] } }, controller.getById);
 
+  fastify.get<{ Params: { id: string } }>('/:id/proof', { schema: { description: 'Download payment proof (owner or admin)', tags: ['Orders'], security: [{ bearerAuth: [] }] } }, controller.downloadProof);
+
+  fastify.get<{ Params: { id: string } }>('/:id/receipt', { schema: { description: 'Printable order receipt as HTML (owner or admin)', tags: ['Orders'], security: [{ bearerAuth: [] }] } }, controller.getReceipt);
+
   fastify.post('/', { schema: { description: 'Create order from cart', tags: ['Orders'], security: [{ bearerAuth: [] }] } }, controller.create);
 
   fastify.patch<{ Params: { id: string } }>('/:id/status', { preHandler: [requireRole(['admin'])], schema: { description: 'Update order status', tags: ['Orders'], security: [{ bearerAuth: [] }] } }, controller.updateStatus);

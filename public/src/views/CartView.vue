@@ -39,12 +39,12 @@
 </template>
 
 <script setup>
+import { formatIDR } from '../utils/format'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 
 const router = useRouter()
 const cartStore = useCartStore()
-const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val))
 
 function checkout() {
   if (cartStore.items.length) router.push('/checkout')

@@ -6,6 +6,7 @@ import { User } from '../config/db.schemas.js';
 import { AppError } from '../types/errors.js';
 import { sendEmail, buildVerifyEmailLink, buildResetPasswordLink } from './email.service.js';
 import bcrypt from 'bcryptjs';
+import env from '../config/env.js';
 
 export class AuthService {
   private userModel: UserModel;
@@ -93,7 +94,7 @@ export class AuthService {
       throw AppError.badRequest('Invalid or expired reset token');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, parseInt(env.BCRYPT_ROUNDS, 10));
     await this.userModel.updatePasswordOnly(token.userId, hashedPassword);
     await this.tokenModel.markUsed(token.id);
   }

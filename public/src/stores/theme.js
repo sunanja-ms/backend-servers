@@ -1,31 +1,36 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+
+export const THEME_MODES = ['light', 'dark', 'system']
 
 export const useThemeStore = defineStore('theme', () => {
   const saved = localStorage.getItem('theme')
-  const osDark = window.matchMedia('(prefers-color-scheme: dark)')
-  const dark = ref(saved ? saved === 'dark' : osDark.matches)
-  const followSystem = ref(!saved)
+  const mode = ref(THEME_MODES.includes(saved) ? saved : 'system')
 
-  function apply(val) {
-    document.documentElement.setAttribute('data-theme', val ? 'dark' : 'light')
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const systemDark = ref(media.matches)
+
+  const dark = computed(() => (mode.value === 'system' ? systemDark.value : mode.value === 'dark'))
+
+  function apply() {
+    document.documentElement.setAttribute('data-theme', dark.value ? 'dark' : 'light')
+  }
+
+  function setMode(next) {
+    if (!THEME_MODES.includes(next)) return
+    mode.value = next
+    localStorage.setItem('theme', next)
   }
 
   function toggle() {
-    followSystem.value = false
-    dark.value = !dark.value
-    localStorage.setItem('theme', dark.value ? 'dark' : 'light')
-  }
-
-  function onOSChange(e) {
-    if (followSystem.value) {
-      dark.value = e.matches
-    }
+    setMode(dark.value ? 'light' : 'dark')
   }
 
   watch(dark, apply, { immediate: true })
 
-  osDark.addEventListener('change', onOSChange)
+  media.addEventListener('change', (e) => {
+    systemDark.value = e.matches
+  })
 
-  return { dark, toggle, followSystem }
+  return { mode, dark, setMode, toggle, apply }
 })

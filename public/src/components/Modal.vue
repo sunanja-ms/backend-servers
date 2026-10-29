@@ -1,18 +1,16 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <button class="modal-close" @click="$emit('close')">&times;</button>
-      <slot />
+  <Transition name="modal" appear>
+    <div class="modal-overlay" @click.self="$emit('close')">
+      <div class="modal-content" role="dialog" aria-modal="true">
+        <button class="modal-close" aria-label="Close" @click="$emit('close')">×</button>
+        <h2 v-if="title">{{ title }}</h2>
+        <slot />
+      </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <script setup>
+defineProps({ title: String })
 defineEmits(['close'])
 </script>
-
-<style scoped>
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal-content { background: var(--card-bg); padding: 32px; border-radius: 8px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; position: relative; color: var(--text); }
-.modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
-</style>

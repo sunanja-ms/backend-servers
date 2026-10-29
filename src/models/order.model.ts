@@ -1,6 +1,7 @@
 import { db } from '../config/db.connection.js';
-import { orders, orderItems, Order, NewOrder, NewOrderItem } from '../config/db.schemas.js';
-import { eq, desc, sql, asc, and, inArray } from 'drizzle-orm';
+import { orders, orderItems, cartItems, products, Order, NewOrder, NewOrderItem } from '../config/db.schemas.js';
+import { eq, desc, sql, asc, and, gte, inArray } from 'drizzle-orm';
+import { AppError } from '../types/errors.js';
 import logger from '../utils/logger.js';
 import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 
@@ -50,20 +51,35 @@ export class OrderModel {
   }
 
   async create(userId: number, data: NewOrder, items: { productId: number; productName: string; price: string; quantity: number }[]): Promise<any> {
-    const [order] = await db.insert(orders).values({ ...data, userId }).returning();
-    if (!order) throw new Error('Failed to create order');
+    const orderId = await db.transaction(async (tx) => {
+      // Conditional decrement keeps stock correct under concurrent checkouts.
+      for (const item of items) {
+        const [updated] = await tx
+          .update(products)
+          .set({ stock: sql`${products.stock} - ${item.quantity}`, updatedAt: new Date() })
+          .where(and(eq(products.id, item.productId), gte(products.stock, item.quantity)))
+          .returning({ id: products.id });
+        if (!updated) throw AppError.conflict(`Insufficient stock for ${item.productName}`);
+      }
 
-    const orderItemsData: NewOrderItem[] = items.map(i => ({
-      orderId: order.id,
-      productId: i.productId,
-      productName: i.productName,
-      price: i.price,
-      quantity: i.quantity,
-    }));
+      const [order] = await tx.insert(orders).values({ ...data, userId }).returning();
+      if (!order) throw new Error('Failed to create order');
 
-    await db.insert(orderItems).values(orderItemsData);
-    logger.info(`Order created: #${order.id} by user ${userId}`);
-    return this.findById(order.id);
+      const orderItemsData: NewOrderItem[] = items.map(i => ({
+        orderId: order.id,
+        productId: i.productId,
+        productName: i.productName,
+        price: i.price,
+        quantity: i.quantity,
+      }));
+
+      await tx.insert(orderItems).values(orderItemsData);
+      await tx.delete(cartItems).where(eq(cartItems.userId, userId));
+      return order.id;
+    });
+
+    logger.info(`Order created: #${orderId} by user ${userId}`);
+    return this.findById(orderId);
   }
 
   async update(id: number, data: Partial<NewOrder>): Promise<any | null> {

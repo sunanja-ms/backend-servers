@@ -6,3 +6,5 @@ export const createOrder = (data) => client.post('/orders', data)
 export const uploadPaymentProof = (id, formData) => client.patch(`/orders/${id}/pay`, formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 })
+export const getPaymentProof = (id) => client.get(`/orders/${id}/proof`, { responseType: 'blob' })
+export const getReceipt = (id) => client.get(`/orders/${id}/receipt`, { responseType: 'blob' })

@@ -21,7 +21,7 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           limit: { type: 'number', minimum: 1, maximum: 100, default: 10 },
           sortBy: { type: 'string', enum: ['name', 'price', 'stock', 'createdAt', 'updatedAt'] },
           sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
-          search: { type: 'string' },
+          search: { type: 'string', maxLength: 100 },
           isActive: { type: 'string', enum: ['true', 'false'] },
           categoryId: { type: 'number' },
           includeDeleted: { type: 'boolean', default: false },
@@ -33,28 +33,43 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           properties: {
             success: { type: 'boolean' },
             message: { type: 'string' },
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' },
             data: {
               type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  name: { type: 'string' },
-                  description: { type: 'string' },
-                  price: { type: 'string' },
-                  stock: { type: 'number' },
-                  userId: { type: 'number' },
-                  isActive: { type: 'boolean' },
-                  createdAt: { type: 'string' },
-                  updatedAt: { type: 'string' },
-                },
-              },
+              items: { type: 'object', additionalProperties: true },
             },
           },
         },
       },
     },
   }, productController.getAll);
+
+  fastify.get<{ Querystring: { threshold?: number } }>('/low-stock', {
+    preHandler: [requireRole(['admin', 'moderator'])],
+    schema: {
+      description: 'List products at or below a stock threshold (Admin/Moderator only)',
+      tags: ['Products'],
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: {
+          threshold: { type: 'number', minimum: 0, maximum: 1000, default: 10 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array' },
+          },
+        },
+      },
+    },
+  }, productController.getLowStock);
 
   fastify.get('/:id', {
     schema: {
@@ -73,20 +88,7 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                name: { type: 'string' },
-                description: { type: 'string' },
-                price: { type: 'string' },
-                stock: { type: 'number' },
-                userId: { type: 'number' },
-                isActive: { type: 'boolean' },
-                createdAt: { type: 'string' },
-                updatedAt: { type: 'string' },
-              },
-            },
+            data: { type: 'object', additionalProperties: true },
           },
         },
       },
@@ -102,10 +104,11 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
         type: 'object',
         required: ['name', 'price'],
         properties: {
-          name: { type: 'string', minLength: 1 },
-          description: { type: 'string' },
+          name: { type: 'string', minLength: 1, maxLength: 120 },
+          description: { type: 'string', maxLength: 5000 },
           price: { type: 'number', minimum: 0 },
           stock: { type: 'number', minimum: 0, default: 0 },
+          categoryId: { type: 'number' },
         },
       },
       response: {
@@ -114,19 +117,7 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           properties: {
             success: { type: 'boolean' },
             message: { type: 'string' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                name: { type: 'string' },
-                description: { type: 'string' },
-                price: { type: 'string' },
-                stock: { type: 'number' },
-                userId: { type: 'number' },
-                isActive: { type: 'boolean' },
-                createdAt: { type: 'string' },
-              },
-            },
+            data: { type: 'object', additionalProperties: true },
           },
         },
       },
@@ -148,11 +139,12 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
       body: {
         type: 'object',
         properties: {
-          name: { type: 'string', minLength: 1 },
-          description: { type: 'string' },
+          name: { type: 'string', minLength: 1, maxLength: 120 },
+          description: { type: 'string', maxLength: 5000 },
           price: { type: 'number', minimum: 0 },
           stock: { type: 'number', minimum: 0 },
           isActive: { type: 'boolean' },
+          categoryId: { type: 'number' },
         },
       },
       response: {
@@ -161,19 +153,7 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
           properties: {
             success: { type: 'boolean' },
             message: { type: 'string' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                name: { type: 'string' },
-                description: { type: 'string' },
-                price: { type: 'string' },
-                stock: { type: 'number' },
-                userId: { type: 'number' },
-                isActive: { type: 'boolean' },
-                updatedAt: { type: 'string' },
-              },
-            },
+            data: { type: 'object', additionalProperties: true },
           },
         },
       },
@@ -271,6 +251,19 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
   }, productController.deleteImage);
+
+  fastify.patch<{ Params: { id: string; imageId: string } }>('/:id/images/:imageId/primary', {
+    schema: {
+      description: 'Set a product image as primary',
+      tags: ['Products'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' }, imageId: { type: 'number' } },
+        required: ['id', 'imageId'],
+      },
+    },
+  }, productController.setPrimaryImage);
 
   fastify.patch<{ Params: { id: string }; Body: { isActive: boolean } }>('/:id/toggle-status', {
     preHandler: [requireRole(['admin'])],

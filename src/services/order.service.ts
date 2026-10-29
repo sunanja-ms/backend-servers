@@ -1,5 +1,6 @@
 import { OrderModel } from '../models/order.model.js';
 import { CartModel } from '../models/cart.model.js';
+import { AppError } from '../types/errors.js';
 import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 
 export class OrderService {
@@ -16,7 +17,7 @@ export class OrderService {
 
   async create(userId: number, data: { shippingAddress: string; phone: string; notes?: string }): Promise<any> {
     const cartItems = await this.cartModel.findByUser(userId);
-    if (!cartItems.length) throw new Error('Cart is empty');
+    if (!cartItems.length) throw AppError.badRequest('Cart is empty');
 
     const items = cartItems.map((item: any) => ({
       productId: item.productId,
@@ -37,7 +38,6 @@ export class OrderService {
       paymentMethod: 'qris',
     } as any, items);
 
-    await this.cartModel.clearByUser(userId);
     return order;
   }
 

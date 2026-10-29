@@ -2,6 +2,7 @@
   <div class="video-player">
     <div class="video-container" ref="container" @dblclick="onDblClick">
       <video ref="videoEl" class="plyr-video" :poster="poster"></video>
+      <div v-if="errorMsg" class="error-overlay">{{ errorMsg }}</div>
       <div v-if="buffering && !paused" class="buffering-overlay">
         <div class="spinner"></div>
       </div>
@@ -27,7 +28,9 @@ let player = null
 let switchingLevel = false
 const paused = ref(true)
 const buffering = ref(false)
+const errorMsg = ref('')
 let controlsTimer = null
+let networkRetries = 0
 
 function createAuthLoader() {
   const Loader = Hls.DefaultConfig.loader
@@ -43,7 +46,9 @@ function createAuthLoader() {
 }
 
 function initPlayer() {
-  if (!videoEl.value) return
+  if (!videoEl.value || !props.masterUrl) return
+  errorMsg.value = ''
+  networkRetries = 0
   const url = props.masterUrl
 
   if (Hls.isSupported()) {
@@ -102,14 +107,19 @@ function initPlayer() {
     })
 
     hls.on(Hls.Events.ERROR, (_, data) => {
-      if (data.fatal) {
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad()
-        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError()
+      if (!data.fatal) return
+      if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+        hls.recoverMediaError()
+      } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRetries < 2) {
+        networkRetries++
+        hls.startLoad()
+      } else {
+        errorMsg.value = 'Stream failed to load. Sign in again and check the server.'
+        hls.destroy()
+        hls = null
       }
     })
 
-    hls.on(Hls.Events.BUFFER_STALLED, () => { buffering.value = true })
-    hls.on(Hls.Events.BUFFER_APPENDED, () => { buffering.value = false })
     hls.on(Hls.Events.FRAG_LOADING, () => { buffering.value = true })
     hls.on(Hls.Events.FRAG_LOADED, () => { buffering.value = false })
 
@@ -183,6 +193,19 @@ watch(() => props.masterUrl, () => {
   transform: translate(-50%, -50%);
   z-index: 10;
   pointer-events: none;
+}
+.error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: center;
+  z-index: 11;
 }
 .spinner {
   width: 40px;

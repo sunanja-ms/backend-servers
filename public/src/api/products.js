@@ -12,3 +12,5 @@ export const uploadProductImage = (id, formData) => client.post(`/products/${id}
   headers: { 'Content-Type': 'multipart/form-data' },
 })
 export const deleteProductImage = (productId, imageId) => client.delete(`/products/${productId}/images/${imageId}`)
+export const setPrimaryProductImage = (productId, imageId) => client.patch(`/products/${productId}/images/${imageId}/primary`)
+export const getLowStock = (threshold = 10) => client.get('/products/low-stock', { params: { threshold } })

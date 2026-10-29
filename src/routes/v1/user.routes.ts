@@ -35,18 +35,7 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
             message: { type: 'string' },
             data: {
               type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  email: { type: 'string' },
-                  name: { type: 'string' },
-                  role: { type: 'string' },
-                  isActive: { type: 'boolean' },
-                  lastLoginAt: { type: 'string' },
-                  createdAt: { type: 'string' },
-                },
-              },
+              items: { type: 'object', additionalProperties: true },
             },
           },
         },
@@ -71,18 +60,7 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                email: { type: 'string' },
-                name: { type: 'string' },
-                role: { type: 'string' },
-                isActive: { type: 'boolean' },
-                lastLoginAt: { type: 'string' },
-                createdAt: { type: 'string' },
-              },
-            },
+            data: { type: 'object', additionalProperties: true },
           },
         },
       },
@@ -114,16 +92,7 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
           properties: {
             success: { type: 'boolean' },
             message: { type: 'string' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                email: { type: 'string' },
-                name: { type: 'string' },
-                role: { type: 'string' },
-                isActive: { type: 'boolean' },
-              },
-            },
+            data: { type: 'object', additionalProperties: true },
           },
         },
       },
@@ -168,6 +137,51 @@ async function userRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
   }, userController.updatePassword);
+
+  fastify.post<{ Params: { id: string } }>('/:id/avatar', {
+    schema: {
+      description: 'Upload avatar (owner or admin only)',
+      tags: ['Users'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' } },
+        required: ['id'],
+      },
+      response: {
+        201: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                avatarUrl: { type: 'string' },
+                role: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, userController.uploadAvatar);
+
+  fastify.delete<{ Params: { id: string } }>('/:id/avatar', {
+    schema: {
+      description: 'Remove avatar (owner or admin only)',
+      tags: ['Users'],
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'number' } },
+        required: ['id'],
+      },
+    },
+  }, userController.deleteAvatar);
 
   fastify.patch<{ Params: { id: string } }>('/:id/restore', {
     preHandler: [requireRole(['admin'])],

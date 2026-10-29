@@ -12,7 +12,7 @@ export default async function helmetPlugin(fastify: FastifyInstance): Promise<vo
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "'sha256-6yHtHWe/3wJQEdz/FRNRnmNfn6Q4X82MugfsE/b1ZzE='"],
       },
     } : false,
   });

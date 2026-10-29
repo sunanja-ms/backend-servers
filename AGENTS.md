@@ -13,6 +13,7 @@ npm run db:generate      # drizzle-kit generate
 npm run db:migrate       # drizzle-kit migrate
 npm run db:push          # drizzle-kit push (schema → DB directly)
 npm run db:studio        # drizzle-kit studio (browser UI)
+sudo bash scripts/install-db.sh  # install PostgreSQL, enable systemd unit, create role + db
 
 # Frontend (in public/)
 cd public && npm run build   # Vite build → public/dist/
@@ -31,6 +32,9 @@ This repo uses `@fastify/autoload` v6. Two critical behaviors:
 ```
 src/routes/v1/auth.routes.ts     → autoPrefix: '/auth'      → /api/v1/auth/...
 src/routes/v1/apikey.routes.ts   → autoPrefix: '/api-keys'  → /api/v1/api-keys/...
+src/routes/v1/cart.routes.ts     → autoPrefix: '/cart'      → /api/v1/cart/...
+src/routes/v1/category.routes.ts → autoPrefix: '/categories' → /api/v1/categories/...
+src/routes/v1/order.routes.ts    → autoPrefix: '/orders'    → /api/v1/orders/...
 src/routes/v1/product.routes.ts  → autoPrefix: '/products'  → /api/v1/products/...
 src/routes/v1/stream.routes.ts   → autoPrefix: '/stream'    → /api/v1/stream/...
 src/routes/v1/user.routes.ts     → autoPrefix: '/users'     → /api/v1/users/...
@@ -45,6 +49,8 @@ Health check lives in `src/utils/health.routes.ts` and is autoloaded at `/` (roo
 ## Static Plugin
 
 `src/plugins/static.plugin.ts` serves the SPA from `public/dist/`. Must set `decorateReply: true` so `reply.sendFile()` is available for the SPA fallback handler. The fallback sends `index.html` for any non-API route, enabling Vue Router's `createWebHistory()`.
+
+Only `storage/products/` is served publicly, at `/storage/products/`. Payment proofs stay in `storage/proofs/` and are downloaded from `GET /api/v1/orders/:id/proof` (owner or admin). Uploads derive the file extension from the declared mime type via `src/utils/upload.ts`; the client filename is ignored. Accepted types: JPEG, PNG, WebP, GIF.
 
 ## ESM
 
@@ -138,3 +144,14 @@ Stream authenticated via `authMiddleware` (JWT or API Key):
 - Only 6 resolutions allowed: 1440p, 1080p, 720p, 480p, 360p, 240p
 - Path traversal prevented (rejects `..`, `/`, `\` in filename)
 - Correct MIME types: `.m3u8` → `application/vnd.apple.mpegurl`, `.ts` → `video/mp2t`
+
+## Persona & Output Rules
+
+Apply these rules to all replies.
+
+1. **No yapping.** Do not open with phrases like "Sure, I can help with that" or "Here is the code". Output the result immediately.
+2. **No unsolicited explanation.** Explain code only when the user explicitly asks.
+3. **Code only.** When asked for a script, return only the code block. Do not explain how to run it unless asked.
+4. **No greetings.** Skip hello, thank you, and apologies.
+5. **Read only when needed.** Check memory (MCP) before reading a file. Do not read files unrelated to the prompt.
+6. **Bullet points.** When explaining, use short bullets. One sentence per bullet.

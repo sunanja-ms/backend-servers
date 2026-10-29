@@ -11,6 +11,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   password: text('password').notNull(),
   name: varchar('name', { length: 100 }).notNull(),
+  avatarUrl: text('avatar_url'),
   role: userRoleEnum('role').default('user'),
   isActive: boolean('is_active').default(true),
   emailVerifiedAt: timestamp('email_verified_at'),
@@ -61,6 +62,15 @@ export const productImages = pgTable('product_images', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   productIdIdx: index('product_image_product_id_idx').on(table.productId),
+}));
+
+export const wishlists = pgTable('wishlists', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userProductIdx: uniqueIndex('wishlist_user_product_idx').on(table.userId, table.productId),
 }));
 
 export const cartItems = pgTable('cart_items', {
@@ -145,3 +155,5 @@ export type ApiKey = InferSelectModel<typeof apiKeys>;
 export type NewApiKey = InferInsertModel<typeof apiKeys>;
 export type Token = InferSelectModel<typeof tokens>;
 export type NewToken = InferInsertModel<typeof tokens>;
+export type Wishlist = InferSelectModel<typeof wishlists>;
+export type NewWishlist = InferInsertModel<typeof wishlists>;

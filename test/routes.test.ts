@@ -31,6 +31,20 @@ function assertErrorResponse(res: any, statusCode: number) {
   return body;
 }
 
+function multipart(filename: string, contentType: string) {
+  const boundary = `----test${UNIQUE}`;
+  const body = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+    `Content-Type: ${contentType}`,
+    '',
+    'test-bytes',
+    `--${boundary}--`,
+    '',
+  ].join('\r\n');
+  return { body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } };
+}
+
 before(async () => {
   app = await buildServer();
   await app.ready();
@@ -622,6 +636,127 @@ describe('Products — Ownership', () => {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.json().success, true);
   });
+
+  it('rejects a non-image upload', async () => {
+    const form = multipart('evil.html', 'text/html');
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/products/${productId}/images`,
+      headers: { authorization: `Bearer ${userToken}`, ...form.headers },
+      payload: form.body,
+    });
+    assert.strictEqual(res.statusCode, 400);
+  });
+
+  it('non-owner cannot delete an image', async () => {
+    const form = multipart('photo.png', 'image/png');
+    const upload = await app.inject({
+      method: 'POST',
+      url: `/api/v1/products/${productId}/images`,
+      headers: { authorization: `Bearer ${userToken}`, ...form.headers },
+      payload: form.body,
+    });
+    assert.strictEqual(upload.statusCode, 201);
+    const imageId = upload.json().data.id;
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/products/${productId}/images/${imageId}`,
+      headers: { authorization: `Bearer ${user2Token}` },
+    });
+    assert.strictEqual(res.statusCode, 403);
+    assertErrorResponse(res, 403);
+
+    const own = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/products/${productId}/images/${imageId}`,
+      headers: { authorization: `Bearer ${userToken}` },
+    });
+    assert.strictEqual(own.statusCode, 204);
+  });
+});
+
+// ─── Cart & Orders ───────────────────────────────────────────────
+
+describe('Cart & Orders', () => {
+  it('POST /api/v1/cart - rejects unknown product', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/cart',
+      headers: { authorization: `Bearer ${user2Token}` },
+      payload: { productId: 999999, quantity: 1 },
+    });
+    assert.strictEqual(res.statusCode, 404);
+    assertErrorResponse(res, 404);
+  });
+
+  it('POST /api/v1/orders - creates order and decrements stock', async () => {
+    const add = await app.inject({
+      method: 'POST',
+      url: '/api/v1/cart',
+      headers: { authorization: `Bearer ${user2Token}` },
+      payload: { productId: user2ProductId, quantity: 2 },
+    });
+    assert.strictEqual(add.statusCode, 201);
+
+    const before = await app.inject({
+      method: 'GET',
+      url: `/api/v1/products/${user2ProductId}`,
+      headers: { authorization: `Bearer ${user2Token}` },
+    });
+    const stockBefore = before.json().data.stock;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      headers: { authorization: `Bearer ${user2Token}` },
+      payload: { shippingAddress: 'Jl. Test 1', phone: '08123456789' },
+    });
+    assert.strictEqual(res.statusCode, 201);
+    const order = res.json().data;
+    assert.strictEqual(order.items.length, 1);
+    assert.strictEqual(order.items[0].quantity, 2);
+
+    const after = await app.inject({
+      method: 'GET',
+      url: `/api/v1/products/${user2ProductId}`,
+      headers: { authorization: `Bearer ${user2Token}` },
+    });
+    assert.strictEqual(after.json().data.stock, stockBefore - 2);
+  });
+
+  it('POST /api/v1/orders - rejects insufficient stock and keeps stock', async () => {
+    const add = await app.inject({
+      method: 'POST',
+      url: '/api/v1/cart',
+      headers: { authorization: `Bearer ${user2Token}` },
+      payload: { productId: user2ProductId, quantity: 99999 },
+    });
+    assert.strictEqual(add.statusCode, 201);
+
+    const before = await app.inject({
+      method: 'GET',
+      url: `/api/v1/products/${user2ProductId}`,
+      headers: { authorization: `Bearer ${user2Token}` },
+    });
+    const stockBefore = before.json().data.stock;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orders',
+      headers: { authorization: `Bearer ${user2Token}` },
+      payload: { shippingAddress: 'Jl. Test 2', phone: '08123456789' },
+    });
+    assert.strictEqual(res.statusCode, 409);
+    assertErrorResponse(res, 409);
+
+    const after = await app.inject({
+      method: 'GET',
+      url: `/api/v1/products/${user2ProductId}`,
+      headers: { authorization: `Bearer ${user2Token}` },
+    });
+    assert.strictEqual(after.json().data.stock, stockBefore);
+  });
 });
 
 // ─── Moderator Setup ──────────────────────────────────────────────
@@ -731,6 +866,26 @@ describe('Users', () => {
     });
     assert.strictEqual(res.statusCode, 404);
     assertErrorResponse(res, 404);
+  });
+
+  it('GET /api/v1/users/:id - foreign profile forbidden', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${user2Id}`,
+      headers: { authorization: `Bearer ${userToken}` },
+    });
+    assert.strictEqual(res.statusCode, 403);
+    assertErrorResponse(res, 403);
+  });
+
+  it('GET /api/v1/users/:id - moderator can read any profile', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${user2Id}`,
+      headers: { authorization: `Bearer ${modToken}` },
+    });
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.json().data.id, user2Id);
   });
 
   it('PUT /api/v1/users/:id - updates user', async () => {

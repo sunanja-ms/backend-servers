@@ -5,7 +5,10 @@
     <div v-else-if="order">
       <div class="page-header">
         <h1>Order #{{ order.id }}</h1>
-        <span :class="'order-status-badge order-status-' + order.status">{{ order.status }}</span>
+        <div class="actions">
+          <button class="btn btn-sm" @click="downloadReceipt">Receipt</button>
+          <span :class="'order-status-badge order-status-' + order.status">{{ order.status }}</span>
+        </div>
       </div>
 
       <div class="order-detail-card">
@@ -67,7 +70,7 @@
 
       <div class="order-detail-card" v-if="order.paymentProof">
         <div class="order-detail-label">Payment Proof</div>
-        <img :src="order.paymentProof" alt="Payment proof" />
+        <img v-if="proofUrl" :src="proofUrl" alt="Payment proof" />
       </div>
     </div>
 
@@ -79,9 +82,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { formatIDR } from '../utils/format'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrder, uploadPaymentProof } from '../api/orders'
+import { getOrder, uploadPaymentProof, getPaymentProof, getReceipt } from '../api/orders'
 import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
@@ -90,8 +94,18 @@ const order = ref(null)
 const loading = ref(true)
 const proofFile = ref(null)
 const uploading = ref(false)
+const proofUrl = ref(null)
+let proofObjectUrl = null
 
-const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val))
+async function loadProof() {
+  if (!order.value?.paymentProof) return
+  try {
+    const res = await getPaymentProof(route.params.id)
+    proofObjectUrl = URL.createObjectURL(res.data)
+    proofUrl.value = proofObjectUrl
+  } catch { proofUrl.value = null }
+}
+
 
 function handleProofUpload(e) { proofFile.value = e.target.files[0] || null }
 
@@ -114,9 +128,22 @@ async function fetchOrder() {
   try {
     const res = await getOrder(route.params.id)
     order.value = res.data.data
+    await loadProof()
   } catch { order.value = null }
   finally { loading.value = false }
 }
 
+async function downloadReceipt() {
+  try {
+    const res = await getReceipt(route.params.id)
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'text/html' }))
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Receipt not available')
+  }
+}
+
 onMounted(fetchOrder)
+onUnmounted(() => { if (proofObjectUrl) URL.revokeObjectURL(proofObjectUrl) })
 </script>

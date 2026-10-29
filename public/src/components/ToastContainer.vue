@@ -1,16 +1,21 @@
 <template>
   <Teleport to="body">
-    <div class="toast-container">
-      <TransitionGroup name="toast">
+    <div class="toast-container" aria-live="polite" aria-atomic="false">
+      <TransitionGroup name="toast" tag="div" class="toast-stack">
         <div
           v-for="n in toast.notifications"
           :key="n.id"
           class="toast"
           :class="'toast-' + n.type"
+          :style="{ '--toast-duration': (n.duration || 4000) + 'ms' }"
         >
-          <span class="toast-icon">{{ icons[n.type] }}</span>
-          <span class="toast-msg">{{ n.message }}</span>
-          <button class="toast-close" @click="toast.dismiss(n.id)">&times;</button>
+          <span class="toast-icon" v-html="icons[n.type]" />
+          <div class="toast-body">
+            <p class="toast-title">{{ titles[n.type] }}</p>
+            <p class="toast-msg">{{ n.message }}</p>
+          </div>
+          <button class="toast-close" aria-label="Tutup" @click="toast.dismiss(n.id)" v-html="closeIcon" />
+          <span v-if="n.duration !== 0" class="toast-progress" />
         </div>
       </TransitionGroup>
     </div>
@@ -22,29 +27,20 @@ import { useToastStore } from '../stores/toast'
 
 const toast = useToastStore()
 
-const icons = { success: '✓', error: '✕', info: 'ℹ' }
+const svg = (body, extra = '') =>
+  `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"${extra}>${body}</svg>`
+
+const icons = {
+  success: svg('<path d="M20 6L9 17l-5-5"/>'),
+  error: svg('<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>'),
+  info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'),
+}
+
+const titles = {
+  success: 'Berhasil',
+  error: 'Gagal',
+  info: 'Info',
+}
+
+const closeIcon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>'
 </script>
-
-<style scoped>
-.toast-container {
-  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-  display: flex; flex-direction: column; gap: 8px; max-width: 400px;
-}
-.toast {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  font-size: 14px; line-height: 1.4;
-}
-.toast-success { background: #d4edda; color: #155724; }
-.toast-error { background: #f8d7da; color: #721c24; }
-.toast-info { background: #d1ecf1; color: #0c5460; }
-.toast-icon { font-weight: 700; font-size: 16px; }
-.toast-msg { flex: 1; }
-.toast-close { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.6; padding: 0; line-height: 1; }
-.toast-close:hover { opacity: 1; }
-
-.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
-.toast-enter-from { opacity: 0; transform: translateX(40px); }
-.toast-leave-to { opacity: 0; transform: translateX(40px); }
-</style>

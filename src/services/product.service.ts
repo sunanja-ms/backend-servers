@@ -5,8 +5,8 @@ import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 export class ProductService {
   private productModel = new ProductModel();
 
-  async findAll(userId?: number, pagination?: PaginationParams): Promise<PaginatedResponse<any>> {
-    return this.productModel.findAll(userId, pagination);
+  async findAll(pagination?: PaginationParams, activeOnly = false): Promise<PaginatedResponse<any>> {
+    return this.productModel.findAll(pagination, activeOnly);
   }
 
   async findById(id: number): Promise<any | null> {
@@ -41,7 +41,19 @@ export class ProductService {
     return this.productModel.addImage(productId, url, isPrimary);
   }
 
-  async deleteImage(imageId: number): Promise<boolean> {
-    return this.productModel.deleteImage(imageId);
+  async deleteImage(productId: number, imageId: number): Promise<boolean> {
+    return this.productModel.deleteImage(productId, imageId);
+  }
+
+  async findImage(productId: number, imageId: number): Promise<any | null> {
+    return this.productModel.findImage(productId, imageId);
+  }
+
+  async setPrimaryImage(productId: number, imageId: number): Promise<any | null> {
+    return this.productModel.setPrimaryImage(productId, imageId);
+  }
+
+  async findLowStock(threshold: number, limit?: number): Promise<any[]> {
+    return this.productModel.findLowStock(threshold, limit);
   }
 }

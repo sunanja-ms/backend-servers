@@ -1,6 +1,6 @@
 import { db } from '../config/db.connection.js';
 import { products, categories, productImages, Product, NewProduct } from '../config/db.schemas.js';
-import { eq, sql, asc, desc, isNull, and, or, ilike, inArray } from 'drizzle-orm';
+import { eq, sql, asc, desc, isNull, and, or, ilike, inArray, lte } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import type { PaginatedResponse, PaginationParams } from '../types/index.js';
 
@@ -13,7 +13,7 @@ const productSortableColumns: Record<string, any> = {
 };
 
 export class ProductModel {
-  async findAll(userId?: number, pagination?: PaginationParams): Promise<PaginatedResponse<any>> {
+  async findAll(pagination?: PaginationParams, activeOnly = false): Promise<PaginatedResponse<any>> {
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 12;
     const offset = (page - 1) * limit;
@@ -25,7 +25,7 @@ export class ProductModel {
 
     const conditions = [isNull(products.deletedAt)];
     if (pagination?.includeDeleted) conditions.pop();
-    if (userId) conditions.push(eq(products.userId, userId));
+    if (activeOnly) conditions.push(eq(products.isActive, true));
     if (pagination?.search) {
       const q = `%${pagination.search}%`;
       conditions.push(or(ilike(products.name, q), ilike(products.description, q))!);
@@ -126,8 +126,42 @@ export class ProductModel {
     return img;
   }
 
-  async deleteImage(imageId: number): Promise<boolean> {
-    await db.delete(productImages).where(eq(productImages.id, imageId));
-    return true;
+  async deleteImage(productId: number, imageId: number): Promise<boolean> {
+    const deleted = await db
+      .delete(productImages)
+      .where(and(eq(productImages.id, imageId), eq(productImages.productId, productId)))
+      .returning({ id: productImages.id });
+    return deleted.length > 0;
+  }
+
+  async findImage(productId: number, imageId: number): Promise<any | null> {
+    const [image] = await db
+      .select()
+      .from(productImages)
+      .where(and(eq(productImages.id, imageId), eq(productImages.productId, productId)))
+      .limit(1);
+    return image || null;
+  }
+
+  async setPrimaryImage(productId: number, imageId: number): Promise<any | null> {
+    const image = await this.findImage(productId, imageId);
+    if (!image) return null;
+
+    await db.update(productImages).set({ isPrimary: false }).where(eq(productImages.productId, productId));
+    const [updated] = await db
+      .update(productImages)
+      .set({ isPrimary: true })
+      .where(and(eq(productImages.id, imageId), eq(productImages.productId, productId)))
+      .returning();
+    return updated || null;
+  }
+
+  async findLowStock(threshold: number, limit = 50): Promise<any[]> {
+    return db
+      .select()
+      .from(products)
+      .where(and(isNull(products.deletedAt), lte(products.stock, threshold)))
+      .orderBy(asc(products.stock))
+      .limit(limit);
   }
 }

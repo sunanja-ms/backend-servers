@@ -51,6 +51,7 @@
 </template>
 
 <script setup>
+import { formatIDR } from '../utils/format'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
@@ -66,7 +67,6 @@ const notes = ref('')
 const submitting = ref(false)
 const showQR = ref(false)
 
-const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(val))
 
 async function placeOrder() {
   if (!address.value || !phone.value) return
