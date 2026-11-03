@@ -1,3 +1,13 @@
+import os from 'node:os';
+
+// Android kernel: uv_interface_addresses fails (errno 97), crashing Fastify's
+// listen log when bound to 0.0.0.0. Shim only; real binding unchanged.
+try {
+  os.networkInterfaces();
+} catch {
+  (os as any).networkInterfaces = () => ({});
+}
+
 import { buildServer } from './app.js';
 import { testConnection } from './config/db.connection.js';
 import logger from './utils/logger.js';

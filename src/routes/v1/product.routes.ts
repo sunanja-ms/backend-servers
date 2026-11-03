@@ -7,7 +7,12 @@ async function productRoutes(fastify: FastifyInstance): Promise<void> {
   const productService = new ProductService();
   const productController = new ProductController(productService);
 
-  fastify.addHook('preHandler', authMiddleware);
+  // Storefront reads (list + detail) are public; all mutations still require auth.
+  fastify.addHook('preHandler', async (request, reply) => {
+    const path = (request.url || '').split('?')[0].replace(/\/+$/, '');
+    const publicRead = request.method === 'GET' && (/\/products$/.test(path) || /\/products\/\d+$/.test(path));
+    if (!publicRead) await authMiddleware(request, reply);
+  });
 
   fastify.get('/', {
     schema: {
